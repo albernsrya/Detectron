@@ -13,18 +13,14 @@
 # limitations under the License.
 ##############################################################################
 
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-from __future__ import unicode_literals
+from __future__ import (absolute_import, division, print_function,
+                        unicode_literals)
 
-import numpy as np
 import unittest
 
+import numpy as np
 from caffe2.proto import caffe2_pb2
-from caffe2.python import core
-from caffe2.python import gradient_checker
-from caffe2.python import workspace
+from caffe2.python import core, gradient_checker, workspace
 
 import detectron.utils.c2 as c2_utils
 import detectron.utils.logging as logging_utils
@@ -42,25 +38,25 @@ class SmoothL1LossTest(unittest.TestCase):
         beta = np.random.random()
 
         op = core.CreateOperator(
-            'SmoothL1Loss', ['Y_hat', 'Y', 'inside_weights', 'outside_weights'],
-            ['loss'],
+            "SmoothL1Loss",
+            ["Y_hat", "Y", "inside_weights", "outside_weights"],
+            ["loss"],
             scale=scale,
-            beta=beta
+            beta=beta,
         )
 
         gc = gradient_checker.GradientChecker(
             stepsize=0.005,
             threshold=0.005,
-            device_option=core.DeviceOption(caffe2_pb2.CUDA, 0)
+            device_option=core.DeviceOption(caffe2_pb2.CUDA, 0),
         )
 
         res, grad, grad_estimated = gc.CheckSimple(
-            op, [Y_hat, Y, inside_weights, outside_weights], 0, [0]
-        )
+            op, [Y_hat, Y, inside_weights, outside_weights], 0, [0])
 
         self.assertTrue(
             grad.shape == grad_estimated.shape,
-            'Fail check: grad.shape != grad_estimated.shape'
+            "Fail check: grad.shape != grad_estimated.shape",
         )
 
         # To inspect the gradient and estimated gradient:
@@ -73,8 +69,8 @@ class SmoothL1LossTest(unittest.TestCase):
         self.assertTrue(res)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     c2_utils.import_detectron_ops()
-    assert 'SmoothL1Loss' in workspace.RegisteredOperators()
+    assert "SmoothL1Loss" in workspace.RegisteredOperators()
     logging_utils.setup_logging(__name__)
     unittest.main()

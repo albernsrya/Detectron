@@ -12,20 +12,17 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 ##############################################################################
-
 """Optimization operator graph construction."""
 
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-from __future__ import unicode_literals
+from __future__ import (absolute_import, division, print_function,
+                        unicode_literals)
 
 import logging
 
 from caffe2.python import muji
 
-from detectron.core.config import cfg
 import detectron.utils.c2 as c2_utils
+from detectron.core.config import cfg
 
 logger = logging.getLogger(__name__)
 
@@ -84,32 +81,30 @@ def _add_allreduce_graph(model):
                 if cfg.USE_NCCL:
                     model.net.NCCLAllreduce(gradients, gradients)
                 else:
-                    muji.Allreduce(model.net, gradients, reduced_affix='')
+                    muji.Allreduce(model.net, gradients, reduced_affix="")
 
 
 def add_single_gpu_param_update_ops(model, gpu_id):
     # Learning rate of 0 is a dummy value to be set properly at the
     # start of training
-    lr = model.param_init_net.ConstantFill(
-        [], 'lr', shape=[1], value=0.0
-    )
-    one = model.param_init_net.ConstantFill(
-        [], 'one', shape=[1], value=1.0
-    )
-    wd = model.param_init_net.ConstantFill(
-        [], 'wd', shape=[1], value=cfg.SOLVER.WEIGHT_DECAY
-    )
+    lr = model.param_init_net.ConstantFill([], "lr", shape=[1], value=0.0)
+    one = model.param_init_net.ConstantFill([], "one", shape=[1], value=1.0)
+    wd = model.param_init_net.ConstantFill([],
+                                           "wd",
+                                           shape=[1],
+                                           value=cfg.SOLVER.WEIGHT_DECAY)
     # weight decay of GroupNorm's parameters
-    wd_gn = model.param_init_net.ConstantFill(
-        [], 'wd_gn', shape=[1], value=cfg.SOLVER.WEIGHT_DECAY_GN
-    )
+    wd_gn = model.param_init_net.ConstantFill([],
+                                              "wd_gn",
+                                              shape=[1],
+                                              value=cfg.SOLVER.WEIGHT_DECAY_GN)
     for param in model.TrainableParams(gpu_id=gpu_id):
-        logger.debug('param ' + str(param) + ' will be updated')
+        logger.debug("param " + str(param) + " will be updated")
         param_grad = model.param_to_grad[param]
         # Initialize momentum vector
-        param_momentum = model.param_init_net.ConstantFill(
-            [param], param + '_momentum', value=0.0
-        )
+        param_momentum = model.param_init_net.ConstantFill([param],
+                                                           param + "_momentum",
+                                                           value=0.0)
         if param in model.biases:
             # Special treatment for biases (mainly to match historical impl.
             # details):
@@ -126,5 +121,5 @@ def add_single_gpu_param_update_ops(model, gpu_id):
         model.net.MomentumSGDUpdate(
             [param_grad, param_momentum, lr, param],
             [param_grad, param_momentum, param],
-            momentum=cfg.SOLVER.MOMENTUM
+            momentum=cfg.SOLVER.MOMENTUM,
         )

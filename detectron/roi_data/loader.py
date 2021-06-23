@@ -12,7 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 ##############################################################################
-
 """Detectron data loader. The design is generic and abstracted away from any
 details of the minibatch. A minibatch is a dictionary of blob name keys and
 their associated numpy (float32 or int32) ndarray values.
@@ -35,43 +34,38 @@ During each fprop the first thing the network does is run a DequeueBlobsOp
 in order to populate the workspace with the blobs from a queued minibatch.
 """
 
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-from __future__ import unicode_literals
+from __future__ import (absolute_import, division, print_function,
+                        unicode_literals)
 
-from collections import deque
-from collections import OrderedDict
 import logging
-import Queue
 import signal
 import threading
 import time
 import uuid
-import numpy as np
+from collections import OrderedDict, deque
 
+import numpy as np
+import Queue
 from caffe2.python import core, workspace
 
-from detectron.core.config import cfg
-from detectron.roi_data.minibatch import get_minibatch
-from detectron.roi_data.minibatch import get_minibatch_blob_names
-from detectron.utils.coordinator import coordinated_get
-from detectron.utils.coordinator import coordinated_put
-from detectron.utils.coordinator import Coordinator
 import detectron.utils.c2 as c2_utils
+from detectron.core.config import cfg
+from detectron.roi_data.minibatch import (get_minibatch,
+                                          get_minibatch_blob_names)
+from detectron.utils.coordinator import (Coordinator, coordinated_get,
+                                         coordinated_put)
 
 logger = logging.getLogger(__name__)
 
 
 class RoIDataLoader(object):
     """roi data loader"""
-    def __init__(
-            self,
-            roidb,
-            num_loaders=4,
-            minibatch_queue_size=64,
-            blobs_queue_capacity=8
-        ):
+
+    def __init__(self,
+                 roidb,
+                 num_loaders=4,
+                 minibatch_queue_size=64,
+                 blobs_queue_capacity=8):
         self._roidb = roidb
         self._lock = threading.Lock()
         self._perm = deque(range(len(self._roidb)))
@@ -84,7 +78,7 @@ class RoIDataLoader(object):
         self._blobs_queue_capacity = blobs_queue_capacity
         # Random queue name in case one instantiates multple RoIDataLoaders
         self._loader_id = uuid.uuid4()
-        self._blobs_queue_name = 'roi_blobs_queue_{}'.format(self._loader_id)
+        self._blobs_queue_name = "roi_blobs_queue_{}".format(self._loader_id)
         # Loader threads construct (partial) minibatches and put them on the
         # minibatch queue
         self._num_loaders = num_loaders
@@ -104,27 +98,26 @@ class RoIDataLoader(object):
                 # self.get_output_names
                 ordered_blobs = OrderedDict()
                 for key in self.get_output_names():
-                    assert blobs[key].dtype in (np.int32, np.float32), \
-                        'Blob {} of dtype {} must have dtype of ' \
-                        'np.int32 or np.float32'.format(key, blobs[key].dtype)
+                    assert blobs[key].dtype in (np.int32, np.float32), (
+                        "Blob {} of dtype {} must have dtype of "
+                        "np.int32 or np.float32".format(key, blobs[key].dtype))
                     ordered_blobs[key] = blobs[key]
-                coordinated_put(
-                    self.coordinator, self._minibatch_queue, ordered_blobs
-                )
-        logger.info('Stopping mini-batch loading thread')
+                coordinated_put(self.coordinator, self._minibatch_queue,
+                                ordered_blobs)
+        logger.info("Stopping mini-batch loading thread")
 
     def enqueue_blobs_thread(self, gpu_id, blob_names):
         """Transfer mini-batches from a mini-batch queue to a BlobsQueue."""
         with self.coordinator.stop_on_exception():
             while not self.coordinator.should_stop():
                 if self._minibatch_queue.qsize == 0:
-                    logger.warning('Mini-batch queue is empty')
-                blobs = coordinated_get(self.coordinator, self._minibatch_queue)
+                    logger.warning("Mini-batch queue is empty")
+                blobs = coordinated_get(self.coordinator,
+                                        self._minibatch_queue)
                 self.enqueue_blobs(gpu_id, blob_names, blobs.values())
-                logger.debug(
-                    'batch queue size {}'.format(self._minibatch_queue.qsize())
-                )
-            logger.info('Stopping enqueue thread')
+                logger.debug("batch queue size {}".format(
+                    self._minibatch_queue.qsize()))
+            logger.info("Stopping enqueue thread")
 
     def get_next_minibatch(self):
         """Return the blobs to be used for the next minibatch. Thread safe."""
@@ -138,9 +131,9 @@ class RoIDataLoader(object):
     def _shuffle_roidb_inds(self):
         """Randomly permute the training roidb. Not thread safe."""
         if cfg.TRAIN.ASPECT_GROUPING:
-            widths = np.array([r['width'] for r in self._roidb])
-            heights = np.array([r['height'] for r in self._roidb])
-            horz = (widths >= heights)
+            widths = np.array([r["width"] for r in self._roidb])
+            heights = np.array([r["height"] for r in self._roidb])
+            horz = widths >= heights
             vert = np.logical_not(horz)
             horz_inds = np.where(horz)[0]
             vert_inds = np.where(vert)[0]
@@ -187,25 +180,24 @@ class RoIDataLoader(object):
             queue_name = self._blobs_queue_name
             blob_names = blob_names
         else:
-            queue_name = 'gpu_{}/{}'.format(gpu_id, self._blobs_queue_name)
-            blob_names = ['gpu_{}/{}'.format(gpu_id, b) for b in blob_names]
+            queue_name = "gpu_{}/{}".format(gpu_id, self._blobs_queue_name)
+            blob_names = ["gpu_{}/{}".format(gpu_id, b) for b in blob_names]
         for (blob_name, blob) in zip(blob_names, blobs):
             workspace.FeedBlob(blob_name, blob, device_option=dev)
-        logger.debug(
-            'enqueue_blobs {}: workspace.FeedBlob: {}'.
-            format(gpu_id, time.time() - t)
-        )
+        logger.debug("enqueue_blobs {}: workspace.FeedBlob: {}".format(
+            gpu_id,
+            time.time() - t))
         t = time.time()
         op = core.CreateOperator(
-            'SafeEnqueueBlobs', [queue_name] + blob_names,
-            blob_names + [queue_name + '_enqueue_status'],
-            device_option=dev
+            "SafeEnqueueBlobs",
+            [queue_name] + blob_names,
+            blob_names + [queue_name + "_enqueue_status"],
+            device_option=dev,
         )
         workspace.RunOperatorOnce(op)
-        logger.debug(
-            'enqueue_blobs {}: workspace.RunOperatorOnce: {}'.
-            format(gpu_id, time.time() - t)
-        )
+        logger.debug("enqueue_blobs {}: workspace.RunOperatorOnce: {}".format(
+            gpu_id,
+            time.time() - t))
 
     def create_threads(self):
         """
@@ -223,10 +215,9 @@ class RoIDataLoader(object):
 
         # Create one enqueuer thread per GPU
         self._enqueuers = [
-            threading.Thread(
-                target=self.enqueue_blobs_thread,
-                args=(gpu_id, enqueue_blob_names)
-            ) for gpu_id in range(self._num_gpus)
+            threading.Thread(target=self.enqueue_blobs_thread,
+                             args=(gpu_id, enqueue_blob_names))
+            for gpu_id in range(self._num_gpus)
         ]
 
     def start(self, prefill=False):
@@ -234,14 +225,11 @@ class RoIDataLoader(object):
         for w in self._workers + self._enqueuers:
             w.start()
         if prefill:
-            logger.info('Pre-filling mini-batch queue...')
+            logger.info("Pre-filling mini-batch queue...")
             while not self._minibatch_queue.full():
-                logger.info(
-                    '  [{:d}/{:d}]'.format(
-                        self._minibatch_queue.qsize(),
-                        self._minibatch_queue.maxsize
-                    )
-                )
+                logger.info("  [{:d}/{:d}]".format(
+                    self._minibatch_queue.qsize(),
+                    self._minibatch_queue.maxsize))
                 time.sleep(0.1)
                 # Detect failure and shutdown
                 if self.coordinator.should_stop():
@@ -262,42 +250,40 @@ class RoIDataLoader(object):
             with c2_utils.GpuNameScope(gpu_id):
                 workspace.RunOperatorOnce(
                     core.CreateOperator(
-                        'CreateBlobsQueue', [], [self._blobs_queue_name],
+                        "CreateBlobsQueue",
+                        [],
+                        [self._blobs_queue_name],
                         num_blobs=len(self.get_output_names()),
-                        capacity=self._blobs_queue_capacity
-                    )
-                )
+                        capacity=self._blobs_queue_capacity,
+                    ))
         if self._num_gpus == 0:
             workspace.RunOperatorOnce(
                 core.CreateOperator(
-                    'CreateBlobsQueue', [], [self._blobs_queue_name],
+                    "CreateBlobsQueue",
+                    [],
+                    [self._blobs_queue_name],
                     num_blobs=len(self.get_output_names()),
-                    capacity=self._blobs_queue_capacity
-                )
-            )
+                    capacity=self._blobs_queue_capacity,
+                ))
         return self.create_enqueue_blobs()
 
     def close_blobs_queues(self):
         """Close a BlobsQueue."""
         for gpu_id in range(self._num_gpus):
-            with core.NameScope('gpu_{}'.format(gpu_id)):
+            with core.NameScope("gpu_{}".format(gpu_id)):
                 workspace.RunOperatorOnce(
-                    core.CreateOperator(
-                        'CloseBlobsQueue', [self._blobs_queue_name], []
-                    )
-                )
+                    core.CreateOperator("CloseBlobsQueue",
+                                        [self._blobs_queue_name], []))
         if self._num_gpus == 0:
             workspace.RunOperatorOnce(
-                core.CreateOperator(
-                    'CloseBlobsQueue', [self._blobs_queue_name], []
-                )
-            )
+                core.CreateOperator("CloseBlobsQueue",
+                                    [self._blobs_queue_name], []))
 
     def create_enqueue_blobs(self):
         """create enqueue blobs"""
         blob_names = self.get_output_names()
         enqueue_blob_names = [
-            '{}_enqueue_{}'.format(b, self._loader_id) for b in blob_names
+            "{}_enqueue_{}".format(b, self._loader_id) for b in blob_names
         ]
         for gpu_id in range(self._num_gpus):
             with c2_utils.NamedCudaScope(gpu_id):
@@ -311,8 +297,7 @@ class RoIDataLoader(object):
     def register_sigint_handler(self):
         def signal_handler(signal, frame):
             logger.info(
-                'SIGINT: Shutting down RoIDataLoader threads and exiting...'
-            )
+                "SIGINT: Shutting down RoIDataLoader threads and exiting...")
             self.shutdown()
 
         signal.signal(signal.SIGINT, signal_handler)

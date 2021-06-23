@@ -13,23 +13,20 @@
 # limitations under the License.
 ##############################################################################
 
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-from __future__ import unicode_literals
+from __future__ import (absolute_import, division, print_function,
+                        unicode_literals)
 
 import logging
 
+import detectron.roi_data.fast_rcnn as fast_rcnn_roi_data
 from detectron.datasets import json_dataset
 from detectron.datasets import roidb as roidb_utils
 from detectron.utils import blob as blob_utils
-import detectron.roi_data.fast_rcnn as fast_rcnn_roi_data
 
 logger = logging.getLogger(__name__)
 
 
 class GenerateProposalLabelsOp(object):
-
     def forward(self, inputs, outputs):
         """See modeling.detector.GenerateProposalLabels for inputs/outputs
         documentation.

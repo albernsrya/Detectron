@@ -20,13 +20,10 @@
 # Licensed under The MIT License [see LICENSE for details]
 # Written by Ross Girshick
 # --------------------------------------------------------
-
 """Timing related functions."""
 
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-from __future__ import unicode_literals
+from __future__ import (absolute_import, division, print_function,
+                        unicode_literals)
 
 import time
 
@@ -53,8 +50,8 @@ class Timer(object):
             return self.diff
 
     def reset(self):
-        self.total_time = 0.
+        self.total_time = 0.0
         self.calls = 0
-        self.start_time = 0.
-        self.diff = 0.
-        self.average_time = 0.
+        self.start_time = 0.0
+        self.diff = 0.0
+        self.average_time = 0.0

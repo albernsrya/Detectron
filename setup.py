@@ -13,49 +13,30 @@
 # limitations under the License.
 ##############################################################################
 
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-
-from Cython.Build import cythonize
-from setuptools import Extension
-from setuptools import setup
+from __future__ import absolute_import, division, print_function
 
 import numpy as np
+from Cython.Build import cythonize
+from setuptools import Extension, setup
 
 _NP_INCLUDE_DIRS = np.get_include()
-
 
 # Extension modules
 ext_modules = [
     Extension(
-        name='detectron.utils.cython_bbox',
-        sources=[
-            'detectron/utils/cython_bbox.pyx'
-        ],
-        extra_compile_args=[
-            '-Wno-cpp'
-        ],
-        include_dirs=[
-            _NP_INCLUDE_DIRS
-        ]
+        name="detectron.utils.cython_bbox",
+        sources=["detectron/utils/cython_bbox.pyx"],
+        extra_compile_args=["-Wno-cpp"],
+        include_dirs=[_NP_INCLUDE_DIRS],
     ),
     Extension(
-        name='detectron.utils.cython_nms',
-        sources=[
-            'detectron/utils/cython_nms.pyx'
-        ],
-        extra_compile_args=[
-            '-Wno-cpp'
-        ],
-        include_dirs=[
-            _NP_INCLUDE_DIRS
-        ]
-    )
+        name="detectron.utils.cython_nms",
+        sources=["detectron/utils/cython_nms.pyx"],
+        extra_compile_args=["-Wno-cpp"],
+        include_dirs=[_NP_INCLUDE_DIRS],
+    ),
 ]
 
-setup(
-    name='Detectron',
-    packages=['detectron'],
-    ext_modules=cythonize(ext_modules)
-)
+setup(name="Detectron",
+      packages=["detectron"],
+      ext_modules=cythonize(ext_modules))

@@ -13,18 +13,14 @@
 # limitations under the License.
 ##############################################################################
 
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-from __future__ import unicode_literals
+from __future__ import (absolute_import, division, print_function,
+                        unicode_literals)
 
-import numpy as np
 import unittest
 
+import numpy as np
 from caffe2.proto import caffe2_pb2
-from caffe2.python import core
-from caffe2.python import gradient_checker
-from caffe2.python import workspace
+from caffe2.python import core, gradient_checker, workspace
 
 import detectron.utils.c2 as c2_utils
 import detectron.utils.logging as logging_utils
@@ -33,21 +29,21 @@ import detectron.utils.logging as logging_utils
 class SpatialNarrowAsOpTest(unittest.TestCase):
     def _run_test(self, A, B, check_grad=False):
         with core.DeviceScope(core.DeviceOption(caffe2_pb2.CUDA, 0)):
-            op = core.CreateOperator('SpatialNarrowAs', ['A', 'B'], ['C'])
-            workspace.FeedBlob('A', A)
-            workspace.FeedBlob('B', B)
+            op = core.CreateOperator("SpatialNarrowAs", ["A", "B"], ["C"])
+            workspace.FeedBlob("A", A)
+            workspace.FeedBlob("B", B)
         workspace.RunOperatorOnce(op)
-        C = workspace.FetchBlob('C')
+        C = workspace.FetchBlob("C")
 
         if check_grad:
             gc = gradient_checker.GradientChecker(
                 stepsize=0.005,
                 threshold=0.005,
-                device_option=core.DeviceOption(caffe2_pb2.CUDA, 0)
+                device_option=core.DeviceOption(caffe2_pb2.CUDA, 0),
             )
 
             res, grad, grad_estimated = gc.CheckSimple(op, [A, B], 0, [0])
-            self.assertTrue(res, 'Grad check failed')
+            self.assertTrue(res, "Grad check failed")
 
         dims = C.shape
         C_ref = A[:dims[0], :dims[1], :dims[2], :dims[3]]
@@ -83,9 +79,9 @@ class SpatialNarrowAsOpTest(unittest.TestCase):
             self._run_test(A, B)
 
 
-if __name__ == '__main__':
-    workspace.GlobalInit(['caffe2', '--caffe2_log_level=0'])
+if __name__ == "__main__":
+    workspace.GlobalInit(["caffe2", "--caffe2_log_level=0"])
     c2_utils.import_detectron_ops()
-    assert 'SpatialNarrowAs' in workspace.RegisteredOperators()
+    assert "SpatialNarrowAs" in workspace.RegisteredOperators()
     logging_utils.setup_logging(__name__)
     unittest.main()

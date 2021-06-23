@@ -13,22 +13,19 @@
 # limitations under the License.
 ##############################################################################
 
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-from __future__ import unicode_literals
+from __future__ import (absolute_import, division, print_function,
+                        unicode_literals)
 
-from detectron.core.config import cfg
-from detectron.modeling.generate_anchors import generate_anchors
-from detectron.utils.c2 import const_fill
-from detectron.utils.c2 import gauss_fill
 import detectron.modeling.FPN as FPN
 import detectron.utils.blob as blob_utils
-
+from detectron.core.config import cfg
+from detectron.modeling.generate_anchors import generate_anchors
+from detectron.utils.c2 import const_fill, gauss_fill
 
 # ---------------------------------------------------------------------------- #
 # RPN and Faster R-CNN outputs and losses
 # ---------------------------------------------------------------------------- #
+
 
 def add_generic_rpn_outputs(model, blob_in, dim_in, spatial_scale_in):
     """Add RPN outputs (objectness classification and bounding box regression)
@@ -55,48 +52,48 @@ def add_generic_rpn_outputs(model, blob_in, dim_in, spatial_scale_in):
 def add_single_scale_rpn_outputs(model, blob_in, dim_in, spatial_scale):
     """Add RPN outputs to a single scale model (i.e., no FPN)."""
     anchors = generate_anchors(
-        stride=1. / spatial_scale,
+        stride=1.0 / spatial_scale,
         sizes=cfg.RPN.SIZES,
-        aspect_ratios=cfg.RPN.ASPECT_RATIOS
+        aspect_ratios=cfg.RPN.ASPECT_RATIOS,
     )
     num_anchors = anchors.shape[0]
     dim_out = dim_in
     # RPN hidden representation
     model.Conv(
         blob_in,
-        'conv_rpn',
+        "conv_rpn",
         dim_in,
         dim_out,
         kernel=3,
         pad=1,
         stride=1,
         weight_init=gauss_fill(0.01),
-        bias_init=const_fill(0.0)
+        bias_init=const_fill(0.0),
     )
-    model.Relu('conv_rpn', 'conv_rpn')
+    model.Relu("conv_rpn", "conv_rpn")
     # Proposal classification scores
     model.Conv(
-        'conv_rpn',
-        'rpn_cls_logits',
+        "conv_rpn",
+        "rpn_cls_logits",
         dim_in,
         num_anchors,
         kernel=1,
         pad=0,
         stride=1,
         weight_init=gauss_fill(0.01),
-        bias_init=const_fill(0.0)
+        bias_init=const_fill(0.0),
     )
     # Proposal bbox regression deltas
     model.Conv(
-        'conv_rpn',
-        'rpn_bbox_pred',
+        "conv_rpn",
+        "rpn_bbox_pred",
         dim_in,
         4 * num_anchors,
         kernel=1,
         pad=0,
         stride=1,
         weight_init=gauss_fill(0.01),
-        bias_init=const_fill(0.0)
+        bias_init=const_fill(0.0),
     )
 
     if not model.train or cfg.MODEL.FASTER_RCNN:
@@ -105,50 +102,49 @@ def add_single_scale_rpn_outputs(model, blob_in, dim_in, spatial_scale):
         #  OR
         #  2) training for Faster R-CNN
         # Otherwise (== training for RPN only), proposals are not needed
-        model.net.Sigmoid('rpn_cls_logits', 'rpn_cls_probs')
+        model.net.Sigmoid("rpn_cls_logits", "rpn_cls_probs")
         model.GenerateProposals(
-            ['rpn_cls_probs', 'rpn_bbox_pred', 'im_info'],
-            ['rpn_rois', 'rpn_roi_probs'],
+            ["rpn_cls_probs", "rpn_bbox_pred", "im_info"],
+            ["rpn_rois", "rpn_roi_probs"],
             anchors=anchors,
-            spatial_scale=spatial_scale
+            spatial_scale=spatial_scale,
         )
 
     if cfg.MODEL.FASTER_RCNN:
         if model.train:
             # Add op that generates training labels for in-network RPN proposals
-            model.GenerateProposalLabels(['rpn_rois', 'roidb', 'im_info'])
+            model.GenerateProposalLabels(["rpn_rois", "roidb", "im_info"])
         else:
             # Alias rois to rpn_rois for inference
-            model.net.Alias('rpn_rois', 'rois')
+            model.net.Alias("rpn_rois", "rois")
 
 
 def add_single_scale_rpn_losses(model):
     """Add losses for a single scale RPN model (i.e., no FPN)."""
     # Spatially narrow the full-sized RPN label arrays to match the feature map
     # shape
-    model.net.SpatialNarrowAs(
-        ['rpn_labels_int32_wide', 'rpn_cls_logits'], 'rpn_labels_int32'
-    )
-    for key in ('targets', 'inside_weights', 'outside_weights'):
+    model.net.SpatialNarrowAs(["rpn_labels_int32_wide", "rpn_cls_logits"],
+                              "rpn_labels_int32")
+    for key in ("targets", "inside_weights", "outside_weights"):
         model.net.SpatialNarrowAs(
-            ['rpn_bbox_' + key + '_wide', 'rpn_bbox_pred'], 'rpn_bbox_' + key
-        )
+            ["rpn_bbox_" + key + "_wide", "rpn_bbox_pred"], "rpn_bbox_" + key)
     loss_rpn_cls = model.net.SigmoidCrossEntropyLoss(
-        ['rpn_cls_logits', 'rpn_labels_int32'],
-        'loss_rpn_cls',
-        scale=model.GetLossScale()
+        ["rpn_cls_logits", "rpn_labels_int32"],
+        "loss_rpn_cls",
+        scale=model.GetLossScale(),
     )
     loss_rpn_bbox = model.net.SmoothL1Loss(
         [
-            'rpn_bbox_pred', 'rpn_bbox_targets', 'rpn_bbox_inside_weights',
-            'rpn_bbox_outside_weights'
+            "rpn_bbox_pred",
+            "rpn_bbox_targets",
+            "rpn_bbox_inside_weights",
+            "rpn_bbox_outside_weights",
         ],
-        'loss_rpn_bbox',
-        beta=1. / 9.,
-        scale=model.GetLossScale()
+        "loss_rpn_bbox",
+        beta=1.0 / 9.0,
+        scale=model.GetLossScale(),
     )
     loss_gradients = blob_utils.get_loss_gradients(
-        model, [loss_rpn_cls, loss_rpn_bbox]
-    )
-    model.AddLosses(['loss_rpn_cls', 'loss_rpn_bbox'])
+        model, [loss_rpn_cls, loss_rpn_bbox])
+    model.AddLosses(["loss_rpn_cls", "loss_rpn_bbox"])
     return loss_gradients

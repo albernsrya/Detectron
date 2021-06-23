@@ -12,19 +12,16 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 ##############################################################################
-
 """Environment helper functions."""
 
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-from __future__ import unicode_literals
+from __future__ import (absolute_import, division, print_function,
+                        unicode_literals)
 
 import os
 import sys
 
 # Default value of the CMake install prefix
-_CMAKE_INSTALL_PREFIX = '/usr/local'
+_CMAKE_INSTALL_PREFIX = "/usr/local"
 
 
 def get_runtime_dir():
@@ -34,14 +31,15 @@ def get_runtime_dir():
 
 def get_py_bin_ext():
     """Retrieve python binary extension."""
-    return '.py'
+    return ".py"
 
 
 def set_up_matplotlib():
     """Set matplotlib up."""
     import matplotlib
+
     # Use a non-interactive backend
-    matplotlib.use('Agg')
+    matplotlib.use("Agg")
 
 
 def exit_on_error():
@@ -62,19 +60,19 @@ def get_detectron_ops_lib():
     prefixes = [_CMAKE_INSTALL_PREFIX, sys.prefix, sys.exec_prefix] + sys.path
     # Search for detectron ops lib
     for prefix in prefixes:
-        ops_path = os.path.join(prefix, 'lib/libcaffe2_detectron_ops_gpu.so')
+        ops_path = os.path.join(prefix, "lib/libcaffe2_detectron_ops_gpu.so")
         if os.path.exists(ops_path):
             # TODO(ilijar): Switch to using a logger
-            print('Found Detectron ops lib: {}'.format(ops_path))
+            print("Found Detectron ops lib: {}".format(ops_path))
             break
-        ops_path = os.path.join(prefix, 'lib/libcaffe2_detectron_ops.so')
+        ops_path = os.path.join(prefix, "lib/libcaffe2_detectron_ops.so")
         if os.path.exists(ops_path):
             # TODO(ilijar): Switch to using a logger
-            print('Found Detectron ops lib: {}'.format(ops_path))
+            print("Found Detectron ops lib: {}".format(ops_path))
             break
-    assert os.path.exists(ops_path), \
-        ('Detectron ops lib not found; make sure that your Caffe2 '
-         'version includes Detectron module')
+    assert os.path.exists(ops_path), (
+        "Detectron ops lib not found; make sure that your Caffe2 "
+        "version includes Detectron module")
     return ops_path
 
 
@@ -83,7 +81,8 @@ def get_custom_ops_lib():
     det_dir, _ = os.path.split(os.path.dirname(__file__))
     root_dir, _ = os.path.split(det_dir)
     custom_ops_lib = os.path.join(
-        root_dir, 'build/libcaffe2_detectron_custom_ops_gpu.so')
-    assert os.path.exists(custom_ops_lib), \
-        'Custom ops lib not found at \'{}\''.format(custom_ops_lib)
+        root_dir, "build/libcaffe2_detectron_custom_ops_gpu.so")
+    assert os.path.exists(
+        custom_ops_lib), "Custom ops lib not found at '{}'".format(
+            custom_ops_lib)
     return custom_ops_lib

@@ -19,7 +19,6 @@
 # Licensed under The MIT License [see LICENSE for details]
 # Written by Ross Girshick
 # --------------------------------------------------------
-
 """Box manipulation functions. The internal Detectron box format is
 [x1, y1, x2, y2] where (x1, y1) specify the top-left box corner and (x2, y2)
 specify the bottom-right box corner. Boxes from external sources, e.g.,
@@ -40,26 +39,24 @@ Since we have a long history of training models with the "+ 1" convention, we
 are reluctant to change it even if our modern tastes prefer not to use it.
 """
 
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-from __future__ import unicode_literals
+from __future__ import (absolute_import, division, print_function,
+                        unicode_literals)
 
 import numpy as np
 
-from detectron.core.config import cfg
 import detectron.utils.cython_bbox as cython_bbox
 import detectron.utils.cython_nms as cython_nms
+from detectron.core.config import cfg
 
 bbox_overlaps = cython_bbox.bbox_overlaps
 
 
 def boxes_area(boxes):
     """Compute the area of an array of boxes."""
-    w = (boxes[:, 2] - boxes[:, 0] + 1)
-    h = (boxes[:, 3] - boxes[:, 1] + 1)
+    w = boxes[:, 2] - boxes[:, 0] + 1
+    h = boxes[:, 3] - boxes[:, 1] + 1
     areas = w * h
-    assert np.all(areas >= 0), 'Negative areas founds'
+    assert np.all(areas >= 0), "Negative areas founds"
     return areas
 
 
@@ -77,16 +74,15 @@ def xywh_to_xyxy(xywh):
         # Single box given as a list of coordinates
         assert len(xywh) == 4
         x1, y1 = xywh[0], xywh[1]
-        x2 = x1 + np.maximum(0., xywh[2] - 1.)
-        y2 = y1 + np.maximum(0., xywh[3] - 1.)
+        x2 = x1 + np.maximum(0.0, xywh[2] - 1.0)
+        y2 = y1 + np.maximum(0.0, xywh[3] - 1.0)
         return (x1, y1, x2, y2)
     elif isinstance(xywh, np.ndarray):
         # Multiple boxes given as a 2D ndarray
         return np.hstack(
-            (xywh[:, 0:2], xywh[:, 0:2] + np.maximum(0, xywh[:, 2:4] - 1))
-        )
+            (xywh[:, 0:2], xywh[:, 0:2] + np.maximum(0, xywh[:, 2:4] - 1)))
     else:
-        raise TypeError('Argument xywh must be a list, tuple, or numpy array.')
+        raise TypeError("Argument xywh must be a list, tuple, or numpy array.")
 
 
 def xyxy_to_xywh(xyxy):
@@ -102,7 +98,7 @@ def xyxy_to_xywh(xyxy):
         # Multiple boxes given as a 2D ndarray
         return np.hstack((xyxy[:, 0:2], xyxy[:, 2:4] - xyxy[:, 0:2] + 1))
     else:
-        raise TypeError('Argument xyxy must be a list, tuple, or numpy array.')
+        raise TypeError("Argument xyxy must be a list, tuple, or numpy array.")
 
 
 def filter_small_boxes(boxes, min_size):
@@ -115,27 +111,29 @@ def filter_small_boxes(boxes, min_size):
 
 def clip_boxes_to_image(boxes, height, width):
     """Clip an array of boxes to an image with the given height and width."""
-    boxes[:, [0, 2]] = np.minimum(width - 1., np.maximum(0., boxes[:, [0, 2]]))
-    boxes[:, [1, 3]] = np.minimum(height - 1., np.maximum(0., boxes[:, [1, 3]]))
+    boxes[:, [0, 2]] = np.minimum(width - 1.0,
+                                  np.maximum(0.0, boxes[:, [0, 2]]))
+    boxes[:, [1, 3]] = np.minimum(height - 1.0,
+                                  np.maximum(0.0, boxes[:, [1, 3]]))
     return boxes
 
 
 def clip_xyxy_to_image(x1, y1, x2, y2, height, width):
     """Clip coordinates to an image with the given height and width."""
-    x1 = np.minimum(width - 1., np.maximum(0., x1))
-    y1 = np.minimum(height - 1., np.maximum(0., y1))
-    x2 = np.minimum(width - 1., np.maximum(0., x2))
-    y2 = np.minimum(height - 1., np.maximum(0., y2))
+    x1 = np.minimum(width - 1.0, np.maximum(0.0, x1))
+    y1 = np.minimum(height - 1.0, np.maximum(0.0, y1))
+    x2 = np.minimum(width - 1.0, np.maximum(0.0, x2))
+    y2 = np.minimum(height - 1.0, np.maximum(0.0, y2))
     return x1, y1, x2, y2
 
 
 def clip_tiled_boxes(boxes, im_shape):
     """Clip boxes to image boundaries. im_shape is [height, width] and boxes
     has shape (N, 4 * num_tiled_boxes)."""
-    assert boxes.shape[1] % 4 == 0, \
-        'boxes.shape[1] is {:d}, but must be divisible by 4.'.format(
-        boxes.shape[1]
-    )
+    assert (
+        boxes.shape[1] %
+        4 == 0), "boxes.shape[1] is {:d}, but must be divisible by 4.".format(
+            boxes.shape[1])
     # x1 >= 0
     boxes[:, 0::4] = np.maximum(np.minimum(boxes[:, 0::4], im_shape[1] - 1), 0)
     # y1 >= 0
@@ -219,17 +217,17 @@ def bbox_transform_inv(boxes, gt_boxes, weights=(1.0, 1.0, 1.0, 1.0)):
     targets_dw = ww * np.log(gt_widths / ex_widths)
     targets_dh = wh * np.log(gt_heights / ex_heights)
 
-    targets = np.vstack((targets_dx, targets_dy, targets_dw,
-                         targets_dh)).transpose()
+    targets = np.vstack(
+        (targets_dx, targets_dy, targets_dw, targets_dh)).transpose()
     return targets
 
 
 def expand_boxes(boxes, scale):
     """Expand an array of boxes by a given scale."""
-    w_half = (boxes[:, 2] - boxes[:, 0]) * .5
-    h_half = (boxes[:, 3] - boxes[:, 1]) * .5
-    x_c = (boxes[:, 2] + boxes[:, 0]) * .5
-    y_c = (boxes[:, 3] + boxes[:, 1]) * .5
+    w_half = (boxes[:, 2] - boxes[:, 0]) * 0.5
+    h_half = (boxes[:, 3] - boxes[:, 1]) * 0.5
+    x_c = (boxes[:, 2] + boxes[:, 0]) * 0.5
+    y_c = (boxes[:, 3] + boxes[:, 1]) * 0.5
 
     w_half *= scale
     h_half *= scale
@@ -259,7 +257,7 @@ def aspect_ratio(boxes, aspect_ratio):
     return boxes_ar
 
 
-def box_voting(top_dets, all_dets, thresh, scoring_method='ID', beta=1.0):
+def box_voting(top_dets, all_dets, thresh, scoring_method="ID", beta=1.0):
     """Apply bounding-box voting to refine `top_dets` by voting with `all_dets`.
     See: https://arxiv.org/abs/1505.01749. Optional score averaging (not in the
     referenced  paper) can be applied by setting `scoring_method` appropriately.
@@ -276,10 +274,10 @@ def box_voting(top_dets, all_dets, thresh, scoring_method='ID', beta=1.0):
         boxes_to_vote = all_boxes[inds_to_vote, :]
         ws = all_scores[inds_to_vote]
         top_dets_out[k, :4] = np.average(boxes_to_vote, axis=0, weights=ws)
-        if scoring_method == 'ID':
+        if scoring_method == "ID":
             # Identity, nothing to do
             pass
-        elif scoring_method == 'TEMP_AVG':
+        elif scoring_method == "TEMP_AVG":
             # Average probabilities (considered as P(detected class) vs.
             # P(not the detected class)) after smoothing with a temperature
             # hyperparameter.
@@ -290,23 +288,22 @@ def box_voting(top_dets, all_dets, thresh, scoring_method='ID', beta=1.0):
             P_temp = X_exp / np.sum(X_exp, axis=0)
             P_avg = P_temp[0].mean()
             top_dets_out[k, 4] = P_avg
-        elif scoring_method == 'AVG':
+        elif scoring_method == "AVG":
             # Combine new probs from overlapping boxes
             top_dets_out[k, 4] = ws.mean()
-        elif scoring_method == 'IOU_AVG':
+        elif scoring_method == "IOU_AVG":
             P = ws
             ws = top_to_all_overlaps[k, inds_to_vote]
             P_avg = np.average(P, weights=ws)
             top_dets_out[k, 4] = P_avg
-        elif scoring_method == 'GENERALIZED_AVG':
+        elif scoring_method == "GENERALIZED_AVG":
             P_avg = np.mean(ws**beta)**(1.0 / beta)
             top_dets_out[k, 4] = P_avg
-        elif scoring_method == 'QUASI_SUM':
+        elif scoring_method == "QUASI_SUM":
             top_dets_out[k, 4] = ws.sum() / float(len(ws))**beta
         else:
             raise NotImplementedError(
-                'Unknown scoring method {}'.format(scoring_method)
-            )
+                "Unknown scoring method {}".format(scoring_method))
 
     return top_dets_out
 
@@ -318,21 +315,23 @@ def nms(dets, thresh):
     return cython_nms.nms(dets, thresh)
 
 
-def soft_nms(
-    dets, sigma=0.5, overlap_thresh=0.3, score_thresh=0.001, method='linear'
-):
+def soft_nms(dets,
+             sigma=0.5,
+             overlap_thresh=0.3,
+             score_thresh=0.001,
+             method="linear"):
     """Apply the soft NMS algorithm from https://arxiv.org/abs/1704.04503."""
     if dets.shape[0] == 0:
         return dets, []
 
-    methods = {'hard': 0, 'linear': 1, 'gaussian': 2}
-    assert method in methods, 'Unknown soft_nms method: {}'.format(method)
+    methods = {"hard": 0, "linear": 1, "gaussian": 2}
+    assert method in methods, "Unknown soft_nms method: {}".format(method)
 
     dets, keep = cython_nms.soft_nms(
         np.ascontiguousarray(dets, dtype=np.float32),
         np.float32(sigma),
         np.float32(overlap_thresh),
         np.float32(score_thresh),
-        np.uint8(methods[method])
+        np.uint8(methods[method]),
     )
     return dets, keep
