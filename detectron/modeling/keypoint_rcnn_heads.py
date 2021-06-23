@@ -12,7 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 ##############################################################################
-
 """Various network "heads" for predicting keypoints in Mask R-CNN.
 
 The design is as follows:
@@ -27,48 +26,45 @@ of keypoint prediction. The keypoint output module converts the feature
 representation into keypoint heatmaps.
 """
 
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-from __future__ import unicode_literals
+from __future__ import (absolute_import, division, print_function,
+                        unicode_literals)
 
-from detectron.core.config import cfg
-from detectron.utils.c2 import const_fill
-from detectron.utils.c2 import gauss_fill
 import detectron.modeling.ResNet as ResNet
 import detectron.utils.blob as blob_utils
-
+from detectron.core.config import cfg
+from detectron.utils.c2 import const_fill, gauss_fill
 
 # ---------------------------------------------------------------------------- #
 # Keypoint R-CNN outputs and losses
 # ---------------------------------------------------------------------------- #
 
+
 def add_keypoint_outputs(model, blob_in, dim):
     """Add Mask R-CNN keypoint specific outputs: keypoint heatmaps."""
     # NxKxHxW
-    upsample_heatmap = (cfg.KRCNN.UP_SCALE > 1)
+    upsample_heatmap = cfg.KRCNN.UP_SCALE > 1
 
     if cfg.KRCNN.USE_DECONV:
         # Apply ConvTranspose to the feature representation; results in 2x
         # upsampling
         blob_in = model.ConvTranspose(
             blob_in,
-            'kps_deconv',
+            "kps_deconv",
             dim,
             cfg.KRCNN.DECONV_DIM,
             kernel=cfg.KRCNN.DECONV_KERNEL,
             pad=int(cfg.KRCNN.DECONV_KERNEL / 2 - 1),
             stride=2,
             weight_init=gauss_fill(0.01),
-            bias_init=const_fill(0.0)
+            bias_init=const_fill(0.0),
         )
-        model.Relu('kps_deconv', 'kps_deconv')
+        model.Relu("kps_deconv", "kps_deconv")
         dim = cfg.KRCNN.DECONV_DIM
 
     if upsample_heatmap:
-        blob_name = 'kps_score_lowres'
+        blob_name = "kps_score_lowres"
     else:
-        blob_name = 'kps_score'
+        blob_name = "kps_score"
 
     if cfg.KRCNN.USE_DECONV_OUTPUT:
         # Use ConvTranspose to predict heatmaps; results in 2x upsampling
@@ -80,8 +76,10 @@ def add_keypoint_outputs(model, blob_in, dim):
             kernel=cfg.KRCNN.DECONV_KERNEL,
             pad=int(cfg.KRCNN.DECONV_KERNEL / 2 - 1),
             stride=2,
-            weight_init=(cfg.KRCNN.CONV_INIT, {'std': 0.001}),
-            bias_init=const_fill(0.0)
+            weight_init=(cfg.KRCNN.CONV_INIT, {
+                "std": 0.001
+            }),
+            bias_init=const_fill(0.0),
         )
     else:
         # Use Conv to predict heatmaps; does no upsampling
@@ -93,15 +91,20 @@ def add_keypoint_outputs(model, blob_in, dim):
             kernel=1,
             pad=0,
             stride=1,
-            weight_init=(cfg.KRCNN.CONV_INIT, {'std': 0.001}),
-            bias_init=const_fill(0.0)
+            weight_init=(cfg.KRCNN.CONV_INIT, {
+                "std": 0.001
+            }),
+            bias_init=const_fill(0.0),
         )
 
     if upsample_heatmap:
         # Increase heatmap output size via bilinear upsampling
         blob_out = model.BilinearInterpolation(
-            blob_out, 'kps_score', cfg.KRCNN.NUM_KEYPOINTS,
-            cfg.KRCNN.NUM_KEYPOINTS, cfg.KRCNN.UP_SCALE
+            blob_out,
+            "kps_score",
+            cfg.KRCNN.NUM_KEYPOINTS,
+            cfg.KRCNN.NUM_KEYPOINTS,
+            cfg.KRCNN.UP_SCALE,
         )
 
     return blob_out
@@ -111,8 +114,9 @@ def add_keypoint_losses(model):
     """Add Mask R-CNN keypoint specific losses."""
     # Reshape input from (N, K, H, W) to (NK, HW)
     model.net.Reshape(
-        ['kps_score'], ['kps_score_reshaped', '_kps_score_old_shape'],
-        shape=(-1, cfg.KRCNN.HEATMAP_SIZE * cfg.KRCNN.HEATMAP_SIZE)
+        ["kps_score"],
+        ["kps_score_reshaped", "_kps_score_old_shape"],
+        shape=(-1, cfg.KRCNN.HEATMAP_SIZE * cfg.KRCNN.HEATMAP_SIZE),
     )
     # Softmax across **space** (woahh....space!)
     # Note: this is not what is commonly called "spatial softmax"
@@ -120,10 +124,10 @@ def add_keypoint_losses(model):
     # location); This is softmax applied over a set of spatial locations (i.e.,
     # each spatial location is a "class").
     kps_prob, loss_kps = model.net.SoftmaxWithLoss(
-        ['kps_score_reshaped', 'keypoint_locations_int32', 'keypoint_weights'],
-        ['kps_prob', 'loss_kps'],
+        ["kps_score_reshaped", "keypoint_locations_int32", "keypoint_weights"],
+        ["kps_prob", "loss_kps"],
         scale=cfg.KRCNN.LOSS_WEIGHT / cfg.NUM_GPUS,
-        spatial=0
+        spatial=0,
     )
     if not cfg.KRCNN.NORMALIZE_BY_VISIBLE_KEYPOINTS:
         # Discussion: the softmax loss above will average the loss by the sum of
@@ -138,12 +142,10 @@ def add_keypoint_losses(model):
         # keypoints were visible in a full minibatch. (Returning to the example,
         # this means that the one visible keypoint contributes as much as each
         # of the N keypoints.)
-        model.StopGradient(
-            'keypoint_loss_normalizer', 'keypoint_loss_normalizer'
-        )
-        loss_kps = model.net.Mul(
-            ['loss_kps', 'keypoint_loss_normalizer'], 'loss_kps_normalized'
-        )
+        model.StopGradient("keypoint_loss_normalizer",
+                           "keypoint_loss_normalizer")
+        loss_kps = model.net.Mul(["loss_kps", "keypoint_loss_normalizer"],
+                                 "loss_kps_normalized")
     loss_gradients = blob_utils.get_loss_gradients(model, [loss_kps])
     model.AddLosses(loss_kps)
     return loss_gradients
@@ -153,33 +155,32 @@ def add_keypoint_losses(model):
 # Keypoint heads
 # ---------------------------------------------------------------------------- #
 
-def add_ResNet_roi_conv5_head_for_keypoints(
-    model, blob_in, dim_in, spatial_scale
-):
-    """Add a ResNet "conv5" / "stage5" head for Mask R-CNN keypoint prediction.
-    """
+
+def add_ResNet_roi_conv5_head_for_keypoints(model, blob_in, dim_in,
+                                            spatial_scale):
+    """Add a ResNet "conv5" / "stage5" head for Mask R-CNN keypoint prediction."""
     model.RoIFeatureTransform(
         blob_in,
-        '_[pose]_pool5',
-        blob_rois='keypoint_rois',
+        "_[pose]_pool5",
+        blob_rois="keypoint_rois",
         method=cfg.KRCNN.ROI_XFORM_METHOD,
         resolution=cfg.KRCNN.ROI_XFORM_RESOLUTION,
         sampling_ratio=cfg.KRCNN.ROI_XFORM_SAMPLING_RATIO,
-        spatial_scale=spatial_scale
+        spatial_scale=spatial_scale,
     )
     # Using the prefix '_[pose]_' to 'res5' enables initializing the head's
     # parameters using pretrained 'res5' parameters if given (see
     # utils.net.initialize_from_weights_file)
     s, dim_in = ResNet.add_stage(
         model,
-        '_[pose]_res5',
-        '_[pose]_pool5',
+        "_[pose]_res5",
+        "_[pose]_pool5",
         3,
         dim_in,
         2048,
         512,
         cfg.KRCNN.DILATION,
-        stride_init=int(cfg.KRCNN.ROI_XFORM_RESOLUTION / 7)
+        stride_init=int(cfg.KRCNN.ROI_XFORM_RESOLUTION / 7),
     )
     return s, 2048
 
@@ -191,25 +192,29 @@ def add_roi_pose_head_v1convX(model, blob_in, dim_in, spatial_scale):
     pad_size = kernel_size // 2
     current = model.RoIFeatureTransform(
         blob_in,
-        '_[pose]_roi_feat',
-        blob_rois='keypoint_rois',
+        "_[pose]_roi_feat",
+        blob_rois="keypoint_rois",
         method=cfg.KRCNN.ROI_XFORM_METHOD,
         resolution=cfg.KRCNN.ROI_XFORM_RESOLUTION,
         sampling_ratio=cfg.KRCNN.ROI_XFORM_SAMPLING_RATIO,
-        spatial_scale=spatial_scale
+        spatial_scale=spatial_scale,
     )
 
     for i in range(cfg.KRCNN.NUM_STACKED_CONVS):
         current = model.Conv(
             current,
-            'conv_fcn' + str(i + 1),
+            "conv_fcn" + str(i + 1),
             dim_in,
             hidden_dim,
             kernel_size,
             stride=1,
             pad=pad_size,
-            weight_init=(cfg.KRCNN.CONV_INIT, {'std': 0.01}),
-            bias_init=('ConstantFill', {'value': 0.})
+            weight_init=(cfg.KRCNN.CONV_INIT, {
+                "std": 0.01
+            }),
+            bias_init=("ConstantFill", {
+                "value": 0.0
+            }),
         )
         current = model.Relu(current, current)
         dim_in = hidden_dim

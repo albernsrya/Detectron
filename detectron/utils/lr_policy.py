@@ -12,13 +12,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 ##############################################################################
-
 """Learning rate policies."""
 
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-from __future__ import unicode_literals
+from __future__ import (absolute_import, division, print_function,
+                        unicode_literals)
 
 import numpy as np
 
@@ -32,13 +29,13 @@ def get_lr_at_iter(it):
     lr = get_lr_func()(it)
     if it < cfg.SOLVER.WARM_UP_ITERS:
         method = cfg.SOLVER.WARM_UP_METHOD
-        if method == 'constant':
+        if method == "constant":
             warmup_factor = cfg.SOLVER.WARM_UP_FACTOR
-        elif method == 'linear':
+        elif method == "linear":
             alpha = it / cfg.SOLVER.WARM_UP_ITERS
             warmup_factor = cfg.SOLVER.WARM_UP_FACTOR * (1 - alpha) + alpha
         else:
-            raise KeyError('Unknown SOLVER.WARM_UP_METHOD: {}'.format(method))
+            raise KeyError("Unknown SOLVER.WARM_UP_METHOD: {}".format(method))
         lr *= warmup_factor
     return np.float32(lr)
 
@@ -46,6 +43,7 @@ def get_lr_at_iter(it):
 # ---------------------------------------------------------------------------- #
 # Learning rate policy functions
 # ---------------------------------------------------------------------------- #
+
 
 def lr_func_steps_with_lrs(cur_iter):
     """For cfg.SOLVER.LR_POLICY = 'steps_with_lrs'
@@ -80,24 +78,23 @@ def lr_func_steps_with_decay(cur_iter):
                  in [80, inf] use 0.0002 = 0.02 * 0.1 ** 2
     """
     ind = get_step_index(cur_iter)
-    return cfg.SOLVER.BASE_LR * cfg.SOLVER.GAMMA ** ind
+    return cfg.SOLVER.BASE_LR * cfg.SOLVER.GAMMA**ind
 
 
 def lr_func_step(cur_iter):
-    """For cfg.SOLVER.LR_POLICY = 'step'
-    """
-    return (
-        cfg.SOLVER.BASE_LR *
-        cfg.SOLVER.GAMMA ** (cur_iter // cfg.SOLVER.STEP_SIZE))
+    """For cfg.SOLVER.LR_POLICY = 'step'"""
+    return cfg.SOLVER.BASE_LR * cfg.SOLVER.GAMMA**(cur_iter //
+                                                   cfg.SOLVER.STEP_SIZE)
 
 
 # ---------------------------------------------------------------------------- #
 # Helpers
 # ---------------------------------------------------------------------------- #
 
+
 def get_step_index(cur_iter):
     """Given an iteration, find which learning rate step we're at."""
-    assert cfg.SOLVER.STEPS[0] == 0, 'The first step should always start at 0.'
+    assert cfg.SOLVER.STEPS[0] == 0, "The first step should always start at 0."
     steps = cfg.SOLVER.STEPS + [cfg.SOLVER.MAX_ITER]
     for ind, step in enumerate(steps):  # NoQA
         if cur_iter < step:
@@ -106,9 +103,9 @@ def get_step_index(cur_iter):
 
 
 def get_lr_func():
-    policy = 'lr_func_' + cfg.SOLVER.LR_POLICY
+    policy = "lr_func_" + cfg.SOLVER.LR_POLICY
     if policy not in globals():
-        raise NotImplementedError(
-            'Unknown LR policy: {}'.format(cfg.SOLVER.LR_POLICY))
+        raise NotImplementedError("Unknown LR policy: {}".format(
+            cfg.SOLVER.LR_POLICY))
     else:
         return globals()[policy]

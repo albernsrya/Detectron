@@ -12,30 +12,27 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 ##############################################################################
-
 """Coordinated access to a shared multithreading/processing queue."""
 
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-from __future__ import unicode_literals
+from __future__ import (absolute_import, division, print_function,
+                        unicode_literals)
 
 import contextlib
 import logging
-import Queue
 import threading
 import traceback
+
+import Queue
 
 log = logging.getLogger(__name__)
 
 
 class Coordinator(object):
-
     def __init__(self):
         self._event = threading.Event()
 
     def request_stop(self):
-        log.debug('Coordinator stopping')
+        log.debug("Coordinator stopping")
         self._event.set()
 
     def should_stop(self):
@@ -60,7 +57,7 @@ def coordinated_get(coordinator, queue):
             return queue.get(block=True, timeout=1.0)
         except Queue.Empty:
             continue
-    raise Exception('Coordinator stopped during get()')
+    raise Exception("Coordinator stopped during get()")
 
 
 def coordinated_put(coordinator, queue, element):
@@ -70,4 +67,4 @@ def coordinated_put(coordinator, queue, element):
             return
         except Queue.Full:
             continue
-    raise Exception('Coordinator stopped during put()')
+    raise Exception("Coordinator stopped during put()")

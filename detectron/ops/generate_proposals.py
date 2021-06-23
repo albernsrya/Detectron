@@ -24,8 +24,8 @@
 
 import numpy as np
 
-from detectron.core.config import cfg
 import detectron.utils.boxes as box_utils
+from detectron.core.config import cfg
 
 
 class GenerateProposalsOp(object):
@@ -36,7 +36,7 @@ class GenerateProposalsOp(object):
     def __init__(self, anchors, spatial_scale, train):
         self._anchors = anchors
         self._num_anchors = self._anchors.shape[0]
-        self._feat_stride = 1. / spatial_scale
+        self._feat_stride = 1.0 / spatial_scale
         self._train = train
 
     def forward(self, inputs, outputs):
@@ -69,8 +69,8 @@ class GenerateProposalsOp(object):
         shift_x, shift_y = np.meshgrid(shift_x, shift_y, copy=False)
         # Convert to (K, 4), K=H*W, where the columns are (dx, dy, dx, dy)
         # shift pointing to each grid location
-        shifts = np.vstack((shift_x.ravel(), shift_y.ravel(),
-                            shift_x.ravel(), shift_y.ravel())).transpose()
+        shifts = np.vstack((shift_x.ravel(), shift_y.ravel(), shift_x.ravel(),
+                            shift_y.ravel())).transpose()
 
         # Broacast anchors over shifts to enumerate all anchors at all positions
         # in the (H, W) grid:
@@ -81,7 +81,8 @@ class GenerateProposalsOp(object):
         num_images = inputs[0].shape[0]
         A = self._num_anchors
         K = shifts.shape[0]
-        all_anchors = self._anchors[np.newaxis, :, :] + shifts[:, np.newaxis, :]
+        all_anchors = self._anchors[np.newaxis, :, :] + shifts[:,
+                                                               np.newaxis, :]
         all_anchors = all_anchors.reshape((K * A, 4))
 
         rois = np.empty((0, 5), dtype=np.float32)
@@ -89,12 +90,13 @@ class GenerateProposalsOp(object):
         for im_i in range(num_images):
             # images in one batch have the same im_info. Thus we have im_info.shape[0]=1
             im_i_boxes, im_i_probs = self.proposals_for_one_image(
-                im_info[0, :], all_anchors, bbox_deltas[im_i, :, :, :],
-                scores[im_i, :, :, :]
+                im_info[0, :],
+                all_anchors,
+                bbox_deltas[im_i, :, :, :],
+                scores[im_i, :, :, :],
             )
             batch_inds = im_i * np.ones(
-                (im_i_boxes.shape[0], 1), dtype=np.float32
-            )
+                (im_i_boxes.shape[0], 1), dtype=np.float32)
             im_i_rois = np.hstack((batch_inds, im_i_boxes))
             rois = np.append(rois, im_i_rois, axis=0)
             roi_probs = np.append(roi_probs, im_i_probs, axis=0)
@@ -105,12 +107,11 @@ class GenerateProposalsOp(object):
             outputs[1].reshape(roi_probs.shape)
             outputs[1].data[...] = roi_probs
 
-    def proposals_for_one_image(
-            self, im_info, all_anchors, bbox_deltas, scores
-        ):
+    def proposals_for_one_image(self, im_info, all_anchors, bbox_deltas,
+                                scores):
         """propsals for one image"""
         # Get mode-dependent configuration
-        cfg_key = 'TRAIN' if self._train else 'TEST'
+        cfg_key = "TRAIN" if self._train else "TEST"
         pre_nms_topN = cfg[cfg_key].RPN_PRE_NMS_TOP_N
         post_nms_topN = cfg[cfg_key].RPN_POST_NMS_TOP_N
         nms_thresh = cfg[cfg_key].RPN_NMS_THRESH
@@ -137,9 +138,8 @@ class GenerateProposalsOp(object):
         else:
             # Avoid sorting possibly large arrays; First partition to get top K
             # unsorted and then sort just those (~20x faster for 200k scores)
-            inds = np.argpartition(
-                -scores.squeeze(), pre_nms_topN
-            )[:pre_nms_topN]
+            inds = np.argpartition(-scores.squeeze(),
+                                   pre_nms_topN)[:pre_nms_topN]
             order = np.argsort(-scores[inds].squeeze())
             order = inds[order]
         bbox_deltas = bbox_deltas[order, :]
@@ -147,8 +147,8 @@ class GenerateProposalsOp(object):
         scores = scores[order]
 
         # Transform anchors into proposals via bbox transformations
-        proposals = box_utils.bbox_transform(
-            all_anchors, bbox_deltas, (1.0, 1.0, 1.0, 1.0))
+        proposals = box_utils.bbox_transform(all_anchors, bbox_deltas,
+                                             (1.0, 1.0, 1.0, 1.0))
 
         # 2. clip proposals to image (may result in proposals with zero area
         # that will be removed in the next step)
@@ -172,15 +172,15 @@ class GenerateProposalsOp(object):
 
 
 def _filter_boxes(boxes, min_size, im_info):
-    """Only keep boxes with both sides >= min_size and center within the image.
-    """
+    """Only keep boxes with both sides >= min_size and center within the image."""
     # Scale min_size to match image scale
     min_size *= im_info[2]
     ws = boxes[:, 2] - boxes[:, 0] + 1
     hs = boxes[:, 3] - boxes[:, 1] + 1
-    x_ctr = boxes[:, 0] + ws / 2.
-    y_ctr = boxes[:, 1] + hs / 2.
-    keep = np.where(
-        (ws >= min_size) & (hs >= min_size) &
-        (x_ctr < im_info[1]) & (y_ctr < im_info[0]))[0]
+    x_ctr = boxes[:, 0] + ws / 2.0
+    y_ctr = boxes[:, 1] + hs / 2.0
+    keep = np.where((ws >= min_size)
+                    & (hs >= min_size)
+                    & (x_ctr < im_info[1])
+                    & (y_ctr < im_info[0]))[0]
     return keep

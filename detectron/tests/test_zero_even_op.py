@@ -1,38 +1,34 @@
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-from __future__ import unicode_literals
+from __future__ import (absolute_import, division, print_function,
+                        unicode_literals)
 
-import numpy as np
 import unittest
 
+import numpy as np
 from caffe2.proto import caffe2_pb2
-from caffe2.python import core
-from caffe2.python import workspace
+from caffe2.python import core, workspace
 
 import detectron.utils.c2 as c2_utils
 
 
 class ZeroEvenOpTest(unittest.TestCase):
-
     def _run_zero_even_op(self, X):
-        op = core.CreateOperator('ZeroEven', ['X'], ['Y'])
-        workspace.FeedBlob('X', X)
+        op = core.CreateOperator("ZeroEven", ["X"], ["Y"])
+        workspace.FeedBlob("X", X)
         workspace.RunOperatorOnce(op)
-        Y = workspace.FetchBlob('Y')
+        Y = workspace.FetchBlob("Y")
         return Y
 
     def _run_zero_even_op_gpu(self, X):
         with core.DeviceScope(core.DeviceOption(caffe2_pb2.CUDA, 0)):
-            op = core.CreateOperator('ZeroEven', ['X'], ['Y'])
-            workspace.FeedBlob('X', X)
+            op = core.CreateOperator("ZeroEven", ["X"], ["Y"])
+            workspace.FeedBlob("X", X)
         workspace.RunOperatorOnce(op)
-        Y = workspace.FetchBlob('Y')
+        Y = workspace.FetchBlob("Y")
         return Y
 
     def test_throws_on_non_1D_arrays(self):
         X = np.zeros((2, 2), dtype=np.float32)
-        with self.assertRaisesRegexp(RuntimeError, 'X\.ndim\(\) == 1'):
+        with self.assertRaisesRegexp(RuntimeError, "X\.ndim\(\) == 1"):
             self._run_zero_even_op(X)
 
     def test_handles_empty_arrays(self):
@@ -69,7 +65,7 @@ class ZeroEvenOpTest(unittest.TestCase):
 
     def test_gpu_throws_on_non_1D_arrays(self):
         X = np.zeros((2, 2), dtype=np.float32)
-        with self.assertRaisesRegexp(RuntimeError, 'X\.ndim\(\) == 1'):
+        with self.assertRaisesRegexp(RuntimeError, "X\.ndim\(\) == 1"):
             self._run_zero_even_op_gpu(X)
 
     def test_gpu_handles_empty_arrays(self):
@@ -105,8 +101,8 @@ class ZeroEvenOpTest(unittest.TestCase):
         np.testing.assert_allclose(Y_act, Y_exp)
 
 
-if __name__ == '__main__':
-    workspace.GlobalInit(['caffe2', '--caffe2_log_level=0'])
+if __name__ == "__main__":
+    workspace.GlobalInit(["caffe2", "--caffe2_log_level=0"])
     c2_utils.import_custom_ops()
-    assert 'ZeroEven' in workspace.RegisteredOperators()
+    assert "ZeroEven" in workspace.RegisteredOperators()
     unittest.main()

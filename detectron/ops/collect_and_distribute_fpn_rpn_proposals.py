@@ -13,23 +13,22 @@
 # limitations under the License.
 ##############################################################################
 """collect and distribute fpn and rpn proposals op"""
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-from __future__ import unicode_literals
+from __future__ import (absolute_import, division, print_function,
+                        unicode_literals)
 
 import numpy as np
 
-from detectron.core.config import cfg
-from detectron.datasets import json_dataset
-from detectron.datasets import roidb as roidb_utils
 import detectron.modeling.FPN as fpn
 import detectron.roi_data.fast_rcnn as fast_rcnn_roi_data
 import detectron.utils.blob as blob_utils
+from detectron.core.config import cfg
+from detectron.datasets import json_dataset
+from detectron.datasets import roidb as roidb_utils
 
 
 class CollectAndDistributeFpnRpnProposalsOp(object):
     """def of op of fpn and rpn proposals"""
+
     def __init__(self, train):
         self._train = train
 
@@ -71,7 +70,7 @@ class CollectAndDistributeFpnRpnProposalsOp(object):
 
 def collect(inputs, is_training):
     """function of collect"""
-    cfg_key = 'TRAIN' if is_training else 'TEST'
+    cfg_key = "TRAIN" if is_training else "TEST"
     post_nms_topN = cfg[cfg_key].RPN_POST_NMS_TOP_N
     k_max = cfg.FPN.RPN_MAX_LEVEL
     k_min = cfg.FPN.RPN_MIN_LEVEL
@@ -86,11 +85,12 @@ def collect(inputs, is_training):
     rois = np.concatenate([blob.data for blob in roi_inputs])
     scores = np.concatenate([blob.data for blob in score_inputs])
 
-    batch_size = int(max(rois[:, 0])+1)
+    batch_size = int(max(rois[:, 0]) + 1)
     for i in range(batch_size):
-        idx = (rois[:, 0] == i)
+        idx = rois[:, 0] == i
         per_image_rois = rois[idx, :]
-        assert per_image_rois.shape[0] > 0, "There's no rois in the {}th image.".format(i+1)
+        assert per_image_rois.shape[
+            0] > 0, "There's no rois in the {}th image.".format(i + 1)
         per_image_score = (scores[idx, :]).squeeze()
         inds = np.argsort(-per_image_score)[:post_nms_topN]
         per_image_rois = per_image_rois[inds, :]
@@ -99,6 +99,7 @@ def collect(inputs, is_training):
         else:
             batch_roi = np.vstack((batch_roi, per_image_rois))
     return batch_roi
+
 
 def distribute(rois, label_blobs, outputs, train):
     """To understand the output blob order see return value of

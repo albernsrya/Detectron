@@ -12,46 +12,50 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 ##############################################################################
-
 """Common utility functions for RPN and RetinaNet minibtach blobs preparation.
 """
 
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-from __future__ import unicode_literals
+from __future__ import (absolute_import, division, print_function,
+                        unicode_literals)
 
-from collections import namedtuple
 import logging
-import numpy as np
 import threading
+from collections import namedtuple
 
+import numpy as np
+
+import detectron.utils.boxes as box_utils
 from detectron.core.config import cfg
 from detectron.modeling.generate_anchors import generate_anchors
-import detectron.utils.boxes as box_utils
 
 logger = logging.getLogger(__name__)
-
 
 # octave and aspect fields are only used on RetinaNet. Octave corresponds to the
 # scale of the anchor and aspect denotes which aspect ratio is used in the range
 # of aspect ratios
 FieldOfAnchors = namedtuple(
-    'FieldOfAnchors', [
-        'field_of_anchors', 'num_cell_anchors', 'stride', 'field_size',
-        'octave', 'aspect'
-    ]
+    "FieldOfAnchors",
+    [
+        "field_of_anchors",
+        "num_cell_anchors",
+        "stride",
+        "field_size",
+        "octave",
+        "aspect",
+    ],
 )
 
 # Cache for memoizing _get_field_of_anchors
 _threadlocal_foa = threading.local()
 
 
-def get_field_of_anchors(
-    stride, anchor_sizes, anchor_aspect_ratios, octave=None, aspect=None
-):
+def get_field_of_anchors(stride,
+                         anchor_sizes,
+                         anchor_aspect_ratios,
+                         octave=None,
+                         aspect=None):
     global _threadlocal_foa
-    if not hasattr(_threadlocal_foa, 'cache'):
+    if not hasattr(_threadlocal_foa, "cache"):
         _threadlocal_foa.cache = {}
 
     cache_key = str(stride) + str(anchor_sizes) + str(anchor_aspect_ratios)
@@ -59,16 +63,15 @@ def get_field_of_anchors(
         return _threadlocal_foa.cache[cache_key]
 
     # Anchors at a single feature cell
-    cell_anchors = generate_anchors(
-        stride=stride, sizes=anchor_sizes, aspect_ratios=anchor_aspect_ratios
-    )
+    cell_anchors = generate_anchors(stride=stride,
+                                    sizes=anchor_sizes,
+                                    aspect_ratios=anchor_aspect_ratios)
     num_cell_anchors = cell_anchors.shape[0]
 
     # Generate canonical proposals from shifted anchors
     # Enumerate all shifted positions on the (H, W) grid
     fpn_max_size = cfg.FPN.COARSEST_STRIDE * np.ceil(
-        cfg.TRAIN.MAX_SIZE / float(cfg.FPN.COARSEST_STRIDE)
-    )
+        cfg.TRAIN.MAX_SIZE / float(cfg.FPN.COARSEST_STRIDE))
     field_size = int(np.ceil(fpn_max_size / float(stride)))
     shifts = np.arange(0, field_size) * stride
     shift_x, shift_y = np.meshgrid(shifts, shifts)
@@ -84,10 +87,8 @@ def get_field_of_anchors(
     #   - reshape to (K*A, 4) shifted anchors
     A = num_cell_anchors
     K = shifts.shape[0]
-    field_of_anchors = (
-        cell_anchors.reshape((1, A, 4)) +
-        shifts.reshape((1, K, 4)).transpose((1, 0, 2))
-    )
+    field_of_anchors = cell_anchors.reshape((1, A, 4)) + shifts.reshape(
+        (1, K, 4)).transpose((1, 0, 2))
     field_of_anchors = field_of_anchors.reshape((K * A, 4))
     foa = FieldOfAnchors(
         field_of_anchors=field_of_anchors.astype(np.float32),
@@ -95,7 +96,7 @@ def get_field_of_anchors(
         stride=stride,
         field_size=field_size,
         octave=octave,
-        aspect=aspect
+        aspect=aspect,
     )
     _threadlocal_foa.cache[cache_key] = foa
     return foa
@@ -120,6 +121,5 @@ def unmap(data, count, inds, fill=0):
 
 def compute_targets(ex_rois, gt_rois, weights=(1.0, 1.0, 1.0, 1.0)):
     """Compute bounding-box regression targets for an image."""
-    return box_utils.bbox_transform_inv(ex_rois, gt_rois, weights).astype(
-        np.float32, copy=False
-    )
+    return box_utils.bbox_transform_inv(ex_rois, gt_rois,
+                                        weights).astype(np.float32, copy=False)

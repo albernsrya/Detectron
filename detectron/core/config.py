@@ -20,7 +20,6 @@
 # Licensed under The MIT License [see LICENSE for details]
 # Written by Ross Girshick
 # --------------------------------------------------------
-
 """Detectron config system.
 
 This file specifies default config options for Detectron. You should not
@@ -37,20 +36,19 @@ Detectron supports a lot of different model types, each of which has a lot of
 different options. The result is a HUGE set of configuration options.
 """
 
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-from __future__ import unicode_literals
+from __future__ import (absolute_import, division, print_function,
+                        unicode_literals)
 
-from ast import literal_eval
 import copy
 import logging
 import os
 import os.path as osp
+from ast import literal_eval
+
 import numpy as np
+import yaml
 from future.utils import iteritems
 from past.builtins import basestring
-import yaml
 
 from detectron.utils.collections import AttrDict
 from detectron.utils.io import cache_url
@@ -62,7 +60,6 @@ __C = AttrDict()
 #   from detectron.core.config import cfg
 cfg = __C
 
-
 # Random note: avoid using '.ON' as a config key since yaml converts it to True;
 # prefer 'ENABLED' instead
 
@@ -72,7 +69,7 @@ cfg = __C
 __C.TRAIN = AttrDict()
 
 # Initialize network with weights from this .pkl file
-__C.TRAIN.WEIGHTS = b''
+__C.TRAIN.WEIGHTS = b""
 
 # Datasets to train on
 # Available dataset list: detectron.datasets.dataset_catalog.datasets()
@@ -195,7 +192,6 @@ __C.TRAIN.COPY_WEIGHTS = False
 # Add StopGrad at a specified stage so the bottom layers are frozen
 __C.TRAIN.FREEZE_AT = 2
 
-
 # ---------------------------------------------------------------------------- #
 # Data loader options (see detectron/roi_data/loader.py for more info)
 # ---------------------------------------------------------------------------- #
@@ -212,14 +208,13 @@ __C.DATA_LOADER.MINIBATCH_QUEUE_SIZE = 64
 # Capacity of the per GPU blobs queue
 __C.DATA_LOADER.BLOBS_QUEUE_CAPACITY = 8
 
-
 # ---------------------------------------------------------------------------- #
 # Inference ('test') options
 # ---------------------------------------------------------------------------- #
 __C.TEST = AttrDict()
 
 # Initialize network with weights from this .pkl file
-__C.TEST.WEIGHTS = b''
+__C.TEST.WEIGHTS = b""
 
 # Datasets to test on
 # Available dataset list: detectron.datasets.dataset_catalog.datasets()
@@ -288,7 +283,6 @@ __C.TEST.FORCE_JSON_DATASET_EVAL = False
 # Not set for 1-stage models and 2-stage models with RPN subnetwork enabled
 __C.TEST.PRECOMPUTED_PROPOSALS = True
 
-
 # ---------------------------------------------------------------------------- #
 # Test-time augmentations for bounding box detection
 # See configs/test_time_aug/e2e_mask_rcnn_R-50-FPN_2x.yaml for an example
@@ -300,11 +294,11 @@ __C.TEST.BBOX_AUG.ENABLED = False
 
 # Heuristic used to combine predicted box scores
 #   Valid options: ('ID', 'AVG', 'UNION')
-__C.TEST.BBOX_AUG.SCORE_HEUR = b'UNION'
+__C.TEST.BBOX_AUG.SCORE_HEUR = b"UNION"
 
 # Heuristic used to combine predicted box coordinates
 #   Valid options: ('ID', 'AVG', 'UNION')
-__C.TEST.BBOX_AUG.COORD_HEUR = b'UNION'
+__C.TEST.BBOX_AUG.COORD_HEUR = b"UNION"
 
 # Horizontal flip at the original scale (id transform)
 __C.TEST.BBOX_AUG.H_FLIP = False
@@ -341,7 +335,7 @@ __C.TEST.MASK_AUG.ENABLED = False
 # Heuristic used to combine mask predictions
 # SOFT prefix indicates that the computation is performed on soft masks
 #   Valid options: ('SOFT_AVG', 'SOFT_MAX', 'LOGIT_AVG')
-__C.TEST.MASK_AUG.HEUR = b'SOFT_AVG'
+__C.TEST.MASK_AUG.HEUR = b"SOFT_AVG"
 
 # Horizontal flip at the original scale (id transform)
 __C.TEST.MASK_AUG.H_FLIP = False
@@ -376,7 +370,7 @@ __C.TEST.KPS_AUG.ENABLED = False
 
 # Heuristic used to combine keypoint predictions
 #   Valid options: ('HM_AVG', 'HM_MAX')
-__C.TEST.KPS_AUG.HEUR = b'HM_AVG'
+__C.TEST.KPS_AUG.HEUR = b"HM_AVG"
 
 # Horizontal flip at the original scale (id transform)
 __C.TEST.KPS_AUG.H_FLIP = False
@@ -408,7 +402,7 @@ __C.TEST.SOFT_NMS = AttrDict()
 # Use soft NMS instead of standard NMS if set to True
 __C.TEST.SOFT_NMS.ENABLED = False
 # See soft NMS paper for definition of these options
-__C.TEST.SOFT_NMS.METHOD = b'linear'
+__C.TEST.SOFT_NMS.METHOD = b"linear"
 __C.TEST.SOFT_NMS.SIGMA = 0.5
 # For the soft NMS overlap threshold, we simply use TEST.NMS
 
@@ -426,12 +420,11 @@ __C.TEST.BBOX_VOTE.VOTE_TH = 0.8
 
 # The method used to combine scores when doing bounding box voting
 # Valid options include ('ID', 'AVG', 'IOU_AVG', 'GENERALIZED_AVG', 'QUASI_SUM')
-__C.TEST.BBOX_VOTE.SCORING_METHOD = b'ID'
+__C.TEST.BBOX_VOTE.SCORING_METHOD = b"ID"
 
 # Hyperparameter used by the scoring method (it has different meanings for
 # different methods)
 __C.TEST.BBOX_VOTE.SCORING_METHOD_BETA = 1.0
-
 
 # ---------------------------------------------------------------------------- #
 # Model options
@@ -441,13 +434,13 @@ __C.MODEL = AttrDict()
 # The type of model to use
 # The string must match a function in the modeling.model_builder module
 # (e.g., 'generalized_rcnn', 'mask_rcnn', ...)
-__C.MODEL.TYPE = b''
+__C.MODEL.TYPE = b""
 
 # The backbone conv body to use
 # The string must match a function that is imported in modeling.model_builder
 # (e.g., 'FPN.add_fpn_ResNet101_conv5_body' to specify a ResNet-101-FPN
 # backbone)
-__C.MODEL.CONV_BODY = b''
+__C.MODEL.CONV_BODY = b""
 
 # Number of classes in the dataset; must be set
 # E.g., 81 for COCO (80 foreground + 1 background)
@@ -459,7 +452,7 @@ __C.MODEL.CLS_AGNOSTIC_BBOX_REG = False
 
 # Default weights on (dx, dy, dw, dh) for normalizing bbox regression targets
 # These are empirically chosen to approximately lead to unit variance targets
-__C.MODEL.BBOX_REG_WEIGHTS = (10., 10., 5., 5.)
+__C.MODEL.BBOX_REG_WEIGHTS = (10.0, 10.0, 5.0, 5.0)
 
 # The meaning of FASTER_RCNN depends on the context (training vs. inference):
 # 1) During training, FASTER_RCNN = True means that end-to-end training will be
@@ -486,8 +479,7 @@ __C.MODEL.RPN_ONLY = False
 
 # Caffe2 net execution type
 # Use 'prof_dag' to get profiling statistics
-__C.MODEL.EXECUTION_TYPE = b'dag'
-
+__C.MODEL.EXECUTION_TYPE = b"dag"
 
 # ---------------------------------------------------------------------------- #
 # RetinaNet options
@@ -553,7 +545,6 @@ __C.RETINANET.SOFTMAX = False
 # considered for inference
 __C.RETINANET.INFERENCE_TH = 0.05
 
-
 # ---------------------------------------------------------------------------- #
 # Solver options
 # Note: all solver options are used exactly as specified; the implication is
@@ -570,7 +561,7 @@ __C.SOLVER.BASE_LR = 0.001
 
 # Schedule type (see functions in utils.lr_policy for options)
 # E.g., 'step', 'steps_with_decay', ...
-__C.SOLVER.LR_POLICY = b'step'
+__C.SOLVER.LR_POLICY = b"step"
 
 # Some LR Policies (by example):
 # 'step'
@@ -618,7 +609,7 @@ __C.SOLVER.WARM_UP_ITERS = 500
 __C.SOLVER.WARM_UP_FACTOR = 1.0 / 3.0
 
 # WARM_UP_METHOD can be either 'constant' or 'linear' (i.e., gradual)
-__C.SOLVER.WARM_UP_METHOD = 'linear'
+__C.SOLVER.WARM_UP_METHOD = "linear"
 
 # Scale the momentum update history by new_lr / old_lr when updating the
 # learning rate (this is correct given MomentumSGDUpdateOp)
@@ -632,7 +623,6 @@ __C.SOLVER.SCALE_MOMENTUM_THRESHOLD = 1.1
 # threshold (prevents linear warm up from spamming the training log)
 __C.SOLVER.LOG_LR_CHANGE_THRESHOLD = 1.1
 
-
 # ---------------------------------------------------------------------------- #
 # Fast R-CNN options
 # ---------------------------------------------------------------------------- #
@@ -641,7 +631,7 @@ __C.FAST_RCNN = AttrDict()
 # The type of RoI head to use for bounding box classification and regression
 # The string must match a function this is imported in modeling.model_builder
 # (e.g., 'head_builder.add_roi_2mlp_head' to specify a two hidden layer MLP)
-__C.FAST_RCNN.ROI_BOX_HEAD = b''
+__C.FAST_RCNN.ROI_BOX_HEAD = b""
 
 # Hidden layer dimension when using an MLP for the RoI box head
 __C.FAST_RCNN.MLP_HEAD_DIM = 1024
@@ -653,7 +643,7 @@ __C.FAST_RCNN.NUM_STACKED_CONVS = 4
 
 # RoI transformation function (e.g., RoIPool or RoIAlign)
 # (RoIPoolF is the same as RoIPool; ignore the trailing 'F')
-__C.FAST_RCNN.ROI_XFORM_METHOD = b'RoIPoolF'
+__C.FAST_RCNN.ROI_XFORM_METHOD = b"RoIPoolF"
 
 # Number of grid sampling points in RoIAlign (usually use 2)
 # Only applies to RoIAlign
@@ -663,7 +653,6 @@ __C.FAST_RCNN.ROI_XFORM_SAMPLING_RATIO = 0
 # Note: some models may have constraints on what they can use, e.g. they use
 # pretrained FC layers like in VGG16, and will ignore this option
 __C.FAST_RCNN.ROI_XFORM_RESOLUTION = 14
-
 
 # ---------------------------------------------------------------------------- #
 # RPN options
@@ -683,7 +672,6 @@ __C.RPN.STRIDE = 16
 
 # RPN anchor aspect ratios
 __C.RPN.ASPECT_RATIOS = (0.5, 1, 2)
-
 
 # ---------------------------------------------------------------------------- #
 # FPN options
@@ -734,7 +722,6 @@ __C.FPN.EXTRA_CONV_LEVELS = False
 # Use GroupNorm in the FPN-specific layers (lateral, etc.)
 __C.FPN.USE_GN = False
 
-
 # ---------------------------------------------------------------------------- #
 # Mask R-CNN options ("MRCNN" means Mask R-CNN)
 # ---------------------------------------------------------------------------- #
@@ -743,13 +730,13 @@ __C.MRCNN = AttrDict()
 # The type of RoI head to use for instance mask prediction
 # The string must match a function this is imported in modeling.model_builder
 # (e.g., 'mask_rcnn_heads.ResNet_mask_rcnn_fcn_head_v1up4convs')
-__C.MRCNN.ROI_MASK_HEAD = b''
+__C.MRCNN.ROI_MASK_HEAD = b""
 
 # Resolution of mask predictions
 __C.MRCNN.RESOLUTION = 14
 
 # RoI transformation function and associated options
-__C.MRCNN.ROI_XFORM_METHOD = b'RoIAlign'
+__C.MRCNN.ROI_XFORM_METHOD = b"RoIAlign"
 
 # RoI transformation function (e.g., RoIPool or RoIAlign)
 __C.MRCNN.ROI_XFORM_RESOLUTION = 7
@@ -771,7 +758,7 @@ __C.MRCNN.UPSAMPLE_RATIO = 1
 __C.MRCNN.USE_FC_OUTPUT = False
 
 # Weight initialization method for the mask head and mask output layers
-__C.MRCNN.CONV_INIT = b'GaussianFill'
+__C.MRCNN.CONV_INIT = b"GaussianFill"
 
 # Use class specific mask predictions if True (otherwise use class agnostic mask
 # predictions)
@@ -783,7 +770,6 @@ __C.MRCNN.WEIGHT_LOSS_MASK = 1.0
 # Binarization threshold for converting soft masks to hard masks
 __C.MRCNN.THRESH_BINARIZE = 0.5
 
-
 # ---------------------------------------------------------------------------- #
 # Keypoint Mask R-CNN options ("KRCNN" = Mask R-CNN with Keypoint support)
 # ---------------------------------------------------------------------------- #
@@ -792,7 +778,7 @@ __C.KRCNN = AttrDict()
 # The type of RoI head to use for instance keypoint prediction
 # The string must match a function this is imported in modeling.model_builder
 # (e.g., 'keypoint_rcnn_heads.add_roi_pose_head_v1convX')
-__C.KRCNN.ROI_KEYPOINTS_HEAD = b''
+__C.KRCNN.ROI_KEYPOINTS_HEAD = b""
 
 # Output size (and size loss is computed on), e.g., 56x56
 __C.KRCNN.HEATMAP_SIZE = -1
@@ -827,17 +813,17 @@ __C.KRCNN.CONV_HEAD_DIM = 256
 # Conv kernel size used in the keypoint head
 __C.KRCNN.CONV_HEAD_KERNEL = 3
 # Conv kernel weight filling function
-__C.KRCNN.CONV_INIT = b'GaussianFill'
+__C.KRCNN.CONV_INIT = b"GaussianFill"
 
 # Use NMS based on OKS if True
 __C.KRCNN.NMS_OKS = False
 
 # Source of keypoint confidence
 #   Valid options: ('bbox', 'logit', 'prob')
-__C.KRCNN.KEYPOINT_CONFIDENCE = b'bbox'
+__C.KRCNN.KEYPOINT_CONFIDENCE = b"bbox"
 
 # Standard ROI XFORM options (see FAST_RCNN or MRCNN options)
-__C.KRCNN.ROI_XFORM_METHOD = b'RoIAlign'
+__C.KRCNN.ROI_XFORM_METHOD = b"RoIAlign"
 __C.KRCNN.ROI_XFORM_RESOLUTION = 7
 __C.KRCNN.ROI_XFORM_SAMPLING_RATIO = 0
 
@@ -861,7 +847,6 @@ __C.KRCNN.LOSS_WEIGHT = 1.0
 # for detailed discussion.
 __C.KRCNN.NORMALIZE_BY_VISIBLE_KEYPOINTS = True
 
-
 # ---------------------------------------------------------------------------- #
 # R-FCN options
 # ---------------------------------------------------------------------------- #
@@ -869,7 +854,6 @@ __C.RFCN = AttrDict()
 
 # Position-sensitive RoI pooling output grid size (height and width)
 __C.RFCN.PS_GRID_SIZE = 3
-
 
 # ---------------------------------------------------------------------------- #
 # ResNets options ("ResNets" = ResNet and ResNeXt)
@@ -887,15 +871,14 @@ __C.RESNETS.WIDTH_PER_GROUP = 64
 __C.RESNETS.STRIDE_1X1 = True
 
 # Residual transformation function
-__C.RESNETS.TRANS_FUNC = b'bottleneck_transformation'
+__C.RESNETS.TRANS_FUNC = b"bottleneck_transformation"
 # ResNet's stem function (conv1 and pool1)
-__C.RESNETS.STEM_FUNC = b'basic_bn_stem'
+__C.RESNETS.STEM_FUNC = b"basic_bn_stem"
 # ResNet's shortcut function
-__C.RESNETS.SHORTCUT_FUNC = b'basic_bn_shortcut'
+__C.RESNETS.SHORTCUT_FUNC = b"basic_bn_shortcut"
 
 # Apply dilation in stage "res5"
 __C.RESNETS.RES5_DILATION = 1
-
 
 # ---------------------------------------------------------------------------- #
 # GroupNorm options
@@ -907,7 +890,6 @@ __C.GROUP_NORM.DIM_PER_GP = -1
 __C.GROUP_NORM.NUM_GROUPS = 32
 # GroupNorm's small constant in the denominator
 __C.GROUP_NORM.EPSILON = 1e-5
-
 
 # ---------------------------------------------------------------------------- #
 # Misc options
@@ -925,12 +907,12 @@ __C.USE_NCCL = False
 # coordinates. If DEDUP_BOXES > 0, then DEDUP_BOXES is used as the scale factor
 # for identifying duplicate boxes.
 # 1/16 is correct for {Alex,Caffe}Net, VGG_CNN_M_1024, and VGG16
-__C.DEDUP_BOXES = 1 / 16.
+__C.DEDUP_BOXES = 1 / 16.0
 
 # Clip bounding box transformation predictions to prevent np.exp from
 # overflowing
 # Heuristic choice based on that would scale a 16 pixel anchor up to 1000 pixels
-__C.BBOX_XFORM_CLIP = np.log(1000. / 16.)
+__C.BBOX_XFORM_CLIP = np.log(1000.0 / 16.0)
 
 # Pixel mean values (BGR order) as a (1, 1, 3) array
 # We use the same pixel mean for all networks even though it's not exactly what
@@ -949,10 +931,10 @@ __C.EPS = 1e-14
 __C.ROOT_DIR = os.getcwd()
 
 # Output basedir
-__C.OUTPUT_DIR = b'/tmp'
+__C.OUTPUT_DIR = b"/tmp"
 
 # Name (or path to) the matlab executable
-__C.MATLAB = b'matlab'
+__C.MATLAB = b"matlab"
 
 # Reduce memory usage with memonger gradient blob sharing
 __C.MEMONGER = True
@@ -976,12 +958,11 @@ __C.EXPECTED_RESULTS = []
 __C.EXPECTED_RESULTS_RTOL = 0.1
 __C.EXPECTED_RESULTS_ATOL = 0.005
 # Set to send email in case of an EXPECTED_RESULTS failure
-__C.EXPECTED_RESULTS_EMAIL = b''
+__C.EXPECTED_RESULTS_EMAIL = b""
 
 # Models and proposals referred to by URL are downloaded to a local cache
 # specified by DOWNLOAD_CACHE
-__C.DOWNLOAD_CACHE = b'/tmp/detectron-download-cache'
-
+__C.DOWNLOAD_CACHE = b"/tmp/detectron-download-cache"
 
 # ---------------------------------------------------------------------------- #
 # Cluster options
@@ -991,26 +972,22 @@ __C.CLUSTER = AttrDict()
 # Flag to indicate if the code is running in a cluster environment
 __C.CLUSTER.ON_CLUSTER = False
 
-
 # ---------------------------------------------------------------------------- #
 # Deprecated options
 # If an option is removed from the code and you don't want to break existing
 # yaml configs, you can add the full config key as a string to the set below.
 # ---------------------------------------------------------------------------- #
-_DEPRECATED_KEYS = set(
-    {
-        'FINAL_MSG',
-        'MODEL.DILATION',
-        'ROOT_GPU_ID',
-        'RPN.ON',
-        'TRAIN.BBOX_NORMALIZE_TARGETS_PRECOMPUTED',
-        'TRAIN.DROPOUT',
-        'USE_GPU_NMS',
-        'TEST.NUM_TEST_IMAGES',
-        '--device_id'
-    }
-)
-
+_DEPRECATED_KEYS = set({
+    "FINAL_MSG",
+    "MODEL.DILATION",
+    "ROOT_GPU_ID",
+    "RPN.ON",
+    "TRAIN.BBOX_NORMALIZE_TARGETS_PRECOMPUTED",
+    "TRAIN.DROPOUT",
+    "USE_GPU_NMS",
+    "TEST.NUM_TEST_IMAGES",
+    "--device_id",
+})
 
 # ---------------------------------------------------------------------------- #
 # Renamed options
@@ -1020,41 +997,44 @@ _DEPRECATED_KEYS = set(
 # instructions for how to edit the config file.
 # ---------------------------------------------------------------------------- #
 _RENAMED_KEYS = {
-    'EXAMPLE.RENAMED.KEY': 'EXAMPLE.KEY',  # Dummy example to follow
-    'MODEL.PS_GRID_SIZE': 'RFCN.PS_GRID_SIZE',
-    'MODEL.ROI_HEAD': 'FAST_RCNN.ROI_BOX_HEAD',
-    'MRCNN.MASK_HEAD_NAME': 'MRCNN.ROI_MASK_HEAD',
-    'TRAIN.DATASET': (
-        'TRAIN.DATASETS',
+    "EXAMPLE.RENAMED.KEY":
+    "EXAMPLE.KEY",  # Dummy example to follow
+    "MODEL.PS_GRID_SIZE":
+    "RFCN.PS_GRID_SIZE",
+    "MODEL.ROI_HEAD":
+    "FAST_RCNN.ROI_BOX_HEAD",
+    "MRCNN.MASK_HEAD_NAME":
+    "MRCNN.ROI_MASK_HEAD",
+    "TRAIN.DATASET": (
+        "TRAIN.DATASETS",
         "Also convert to a tuple, e.g., " +
         "'coco_2014_train' -> ('coco_2014_train',) or " +
         "'coco_2014_train:coco_2014_valminusminival' -> " +
-        "('coco_2014_train', 'coco_2014_valminusminival')"
+        "('coco_2014_train', 'coco_2014_valminusminival')",
     ),
-    'TRAIN.PROPOSAL_FILE': (
-        'TRAIN.PROPOSAL_FILES',
+    "TRAIN.PROPOSAL_FILE": (
+        "TRAIN.PROPOSAL_FILES",
         "Also convert to a tuple, e.g., " +
         "'path/to/file' -> ('path/to/file',) or " +
         "'path/to/file1:path/to/file2' -> " +
-        "('path/to/file1', 'path/to/file2')"
+        "('path/to/file1', 'path/to/file2')",
     ),
-    'TEST.SCALES': (
-        'TEST.SCALE',
+    "TEST.SCALES": (
+        "TEST.SCALE",
         "Also convert from a tuple, e.g. (600, ), " +
-        "to a integer, e.g. 600."
+        "to a integer, e.g. 600.",
     ),
-    'TEST.DATASET': (
-        'TEST.DATASETS',
+    "TEST.DATASET": (
+        "TEST.DATASETS",
         "Also convert from a string, e.g 'coco_2014_minival', " +
-        "to a tuple, e.g. ('coco_2014_minival', )."
+        "to a tuple, e.g. ('coco_2014_minival', ).",
     ),
-    'TEST.PROPOSAL_FILE': (
-        'TEST.PROPOSAL_FILES',
+    "TEST.PROPOSAL_FILE": (
+        "TEST.PROPOSAL_FILES",
         "Also convert from a string, e.g. '/path/to/props.pkl', " +
-        "to a tuple, e.g. ('/path/to/props.pkl', )."
+        "to a tuple, e.g. ('/path/to/props.pkl', ).",
     ),
 }
-
 
 # ---------------------------------------------------------------------------- #
 # Renamed modules
@@ -1063,7 +1043,7 @@ _RENAMED_KEYS = {
 # (e.g. from weights files) you can specify the renamed module below.
 # ---------------------------------------------------------------------------- #
 _RENAMED_MODULES = {
-    'utils.collections': 'detectron.utils.collections',
+    "utils.collections": "detectron.utils.collections",
 }
 
 
@@ -1092,20 +1072,19 @@ def cache_cfg_urls():
     __C.TRAIN.WEIGHTS = cache_url(__C.TRAIN.WEIGHTS, __C.DOWNLOAD_CACHE)
     __C.TEST.WEIGHTS = cache_url(__C.TEST.WEIGHTS, __C.DOWNLOAD_CACHE)
     __C.TRAIN.PROPOSAL_FILES = tuple(
-        cache_url(f, __C.DOWNLOAD_CACHE) for f in __C.TRAIN.PROPOSAL_FILES
-    )
+        cache_url(f, __C.DOWNLOAD_CACHE) for f in __C.TRAIN.PROPOSAL_FILES)
     __C.TEST.PROPOSAL_FILES = tuple(
-        cache_url(f, __C.DOWNLOAD_CACHE) for f in __C.TEST.PROPOSAL_FILES
-    )
+        cache_url(f, __C.DOWNLOAD_CACHE) for f in __C.TEST.PROPOSAL_FILES)
 
 
 def get_output_dir(datasets, training=True):
     """Get the output directory determined by the current global config."""
-    assert isinstance(datasets, (tuple, list, basestring)), \
-        'datasets argument must be of type tuple, list or string'
+    assert isinstance(datasets, (
+        tuple, list,
+        basestring)), "datasets argument must be of type tuple, list or string"
     is_string = isinstance(datasets, basestring)
-    dataset_name = datasets if is_string else ':'.join(datasets)
-    tag = 'train' if training else 'test'
+    dataset_name = datasets if is_string else ":".join(datasets)
+    tag = "train" if training else "test"
     # <output-dir>/<train|test>/<dataset-name>/<model-type>/
     outdir = osp.join(__C.OUTPUT_DIR, tag, dataset_name, __C.MODEL.TYPE)
     if not osp.exists(outdir):
@@ -1115,22 +1094,23 @@ def get_output_dir(datasets, training=True):
 
 def load_cfg(cfg_to_load):
     """Wrapper around yaml.load used for maintaining backward compatibility"""
-    #pylint: disable=undefined-variable
-    assert isinstance(cfg_to_load, (file, basestring)), \
-        'Expected {} or {} got {}'.format(file, basestring, type(cfg_to_load))
+    # pylint: disable=undefined-variable
+    assert isinstance(cfg_to_load,
+                      (file, basestring)), "Expected {} or {} got {}".format(
+                          file, basestring, type(cfg_to_load))
     if isinstance(cfg_to_load, file):
-        cfg_to_load = ''.join(cfg_to_load.readlines())
+        cfg_to_load = "".join(cfg_to_load.readlines())
     if isinstance(cfg_to_load, basestring):
         for old_module, new_module in iteritems(_RENAMED_MODULES):
             # yaml object encoding: !!python/object/new:<module>.<object>
-            old_module, new_module = 'new:' + old_module, 'new:' + new_module
+            old_module, new_module = "new:" + old_module, "new:" + new_module
             cfg_to_load = cfg_to_load.replace(old_module, new_module)
     return yaml.load(cfg_to_load)
 
 
 def merge_cfg_from_file(cfg_filename):
     """Load a yaml config file and merge it into the global config."""
-    with open(cfg_filename, 'r') as f:
+    with open(cfg_filename, "r") as f:
         yaml_cfg = AttrDict(load_cfg(f))
     _merge_a_into_b(yaml_cfg, __C)
 
@@ -1150,17 +1130,16 @@ def merge_cfg_from_list(cfg_list):
             continue
         if _key_is_renamed(full_key):
             _raise_key_rename_error(full_key)
-        key_list = full_key.split('.')
+        key_list = full_key.split(".")
         d = __C
         for subkey in key_list[:-1]:
-            assert subkey in d, 'Non-existent key: {}'.format(full_key)
+            assert subkey in d, "Non-existent key: {}".format(full_key)
             d = d[subkey]
         subkey = key_list[-1]
-        assert subkey in d, 'Non-existent key: {}'.format(full_key)
+        assert subkey in d, "Non-existent key: {}".format(full_key)
         value = _decode_cfg_value(v)
-        value = _check_and_coerce_cfg_value_type(
-            value, d[subkey], subkey, full_key
-        )
+        value = _check_and_coerce_cfg_value_type(value, d[subkey], subkey,
+                                                 full_key)
         d[subkey] = value
 
 
@@ -1168,13 +1147,15 @@ def _merge_a_into_b(a, b, stack=None):
     """Merge config dictionary a into config dictionary b, clobbering the
     options in b whenever they are also specified in a.
     """
-    assert isinstance(a, AttrDict), \
-        '`a` (cur type {}) must be an instance of {}'.format(type(a), AttrDict)
-    assert isinstance(b, AttrDict), \
-        '`b` (cur type {}) must be an instance of {}'.format(type(b), AttrDict)
+    assert isinstance(
+        a, AttrDict), "`a` (cur type {}) must be an instance of {}".format(
+            type(a), AttrDict)
+    assert isinstance(
+        b, AttrDict), "`b` (cur type {}) must be an instance of {}".format(
+            type(b), AttrDict)
 
     for k, v_ in a.items():
-        full_key = '.'.join(stack) + '.' + k if stack is not None else k
+        full_key = ".".join(stack) + "." + k if stack is not None else k
         # a must specify keys that are in b
         if k not in b:
             if _key_is_deprecated(full_key):
@@ -1182,7 +1163,7 @@ def _merge_a_into_b(a, b, stack=None):
             elif _key_is_renamed(full_key):
                 _raise_key_rename_error(full_key)
             else:
-                raise KeyError('Non-existent config key: {}'.format(full_key))
+                raise KeyError("Non-existent config key: {}".format(full_key))
 
         v = copy.deepcopy(v_)
         v = _decode_cfg_value(v)
@@ -1201,9 +1182,7 @@ def _merge_a_into_b(a, b, stack=None):
 
 def _key_is_deprecated(full_key):
     if full_key in _DEPRECATED_KEYS:
-        logger.warn(
-            'Deprecated config key (ignoring): {}'.format(full_key)
-        )
+        logger.warn("Deprecated config key (ignoring): {}".format(full_key))
         return True
     return False
 
@@ -1215,14 +1194,13 @@ def _key_is_renamed(full_key):
 def _raise_key_rename_error(full_key):
     new_key = _RENAMED_KEYS[full_key]
     if isinstance(new_key, tuple):
-        msg = ' Note: ' + new_key[1]
+        msg = " Note: " + new_key[1]
         new_key = new_key[0]
     else:
-        msg = ''
+        msg = ""
     raise KeyError(
-        'Key {} was renamed to {}; please update your config.{}'.
-        format(full_key, new_key, msg)
-    )
+        "Key {} was renamed to {}; please update your config.{}".format(
+            full_key, new_key, msg))
 
 
 def _decode_cfg_value(v):
@@ -1280,7 +1258,6 @@ def _check_and_coerce_cfg_value_type(value_a, value_b, key, full_key):
         value_a = tuple(value_a)
     else:
         raise ValueError(
-            'Type mismatch ({} vs. {}) with values ({} vs. {}) for config '
-            'key: {}'.format(type_b, type_a, value_b, value_a, full_key)
-        )
+            "Type mismatch ({} vs. {}) with values ({} vs. {}) for config "
+            "key: {}".format(type_b, type_a, value_b, value_a, full_key))
     return value_a
