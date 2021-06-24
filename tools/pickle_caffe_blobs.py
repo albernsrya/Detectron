@@ -14,54 +14,49 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 ##############################################################################
-
 """Script for converting Caffe (<= 1.0) models into the the simple state dict
 format used by Detectron. For example, this script can convert the orignal
 ResNet models released by MSRA.
 """
 
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-from __future__ import unicode_literals
+from __future__ import (absolute_import, division, print_function,
+                        unicode_literals)
 
 import argparse
-import cPickle as pickle
-import numpy as np
 import os
 import sys
 
-from caffe.proto import caffe_pb2
+import cPickle as pickle
+import numpy as np
 from caffe2.proto import caffe2_pb2
-from caffe2.python import caffe_translator
-from caffe2.python import utils
+from caffe2.python import caffe_translator, utils
+from caffe.proto import caffe_pb2
 from google.protobuf import text_format
 
 
 def parse_args():
     parser = argparse.ArgumentParser(
-        description='Dump weights from a Caffe model'
+        description="Dump weights from a Caffe model")
+    parser.add_argument(
+        "--prototxt",
+        dest="prototxt_file_name",
+        help="Network definition prototxt file path",
+        default=None,
+        type=str,
     )
     parser.add_argument(
-        '--prototxt',
-        dest='prototxt_file_name',
-        help='Network definition prototxt file path',
+        "--caffemodel",
+        dest="caffemodel_file_name",
+        help="Pretrained network weights file path",
         default=None,
-        type=str
+        type=str,
     )
     parser.add_argument(
-        '--caffemodel',
-        dest='caffemodel_file_name',
-        help='Pretrained network weights file path',
+        "--output",
+        dest="out_file_name",
+        help="Output file path",
         default=None,
-        type=str
-    )
-    parser.add_argument(
-        '--output',
-        dest='out_file_name',
-        help='Output file path',
-        default=None,
-        type=str
+        type=str,
     )
 
     if len(sys.argv) == 1:
@@ -73,17 +68,16 @@ def parse_args():
 
 
 def normalize_resnet_name(name):
-    if name.find('res') == 0 and name.find('res_') == -1:
+    if name.find("res") == 0 and name.find("res_") == -1:
         # E.g.,
         #  res4b11_branch2c -> res4_11_branch2c
         #  res2a_branch1 -> res2_0_branch1
-        chunk = name[len('res'):name.find('_')]
+        chunk = name[len("res"):name.find("_")]
         name = (
-            'res' + chunk[0] + '_' + str(
+            "res" + chunk[0] + "_" + str(
                 int(chunk[2:]) if len(chunk) > 2  # e.g., "b1" -> 1
-                else ord(chunk[1]) - ord('a')
-            ) +  # e.g., "a" -> 0
-            name[name.find('_'):]
+                else ord(chunk[1]) - ord("a")) +
+            name[name.find("_"):]  # e.g., "a" -> 0
         )
     return name
 
@@ -93,15 +87,15 @@ def pickle_weights(out_file_name, weights):
         normalize_resnet_name(blob.name): utils.Caffe2TensorToNumpyArray(blob)
         for blob in weights.protos
     }
-    with open(out_file_name, 'w') as f:
+    with open(out_file_name, "w") as f:
         pickle.dump(blobs, f, protocol=pickle.HIGHEST_PROTOCOL)
-    print('Wrote blobs:')
+    print("Wrote blobs:")
     print(sorted(blobs.keys()))
 
 
 def add_missing_biases(caffenet_weights):
     for layer in caffenet_weights.layer:
-        if layer.type == 'Convolution' and len(layer.blobs) == 1:
+        if layer.type == "Convolution" and len(layer.blobs) == 1:
             num_filters = layer.blobs[0].shape.dim[0]
             bias_blob = caffe_pb2.BlobProto()
             bias_blob.data.extend(np.zeros(num_filters))
@@ -112,7 +106,7 @@ def add_missing_biases(caffenet_weights):
 
 def remove_spatial_bn_layers(caffenet, caffenet_weights):
     # Layer types associated with spatial batch norm
-    remove_types = ['BatchNorm', 'Scale']
+    remove_types = ["BatchNorm", "Scale"]
 
     def _remove_layers(net):
         for i in reversed(range(len(net.layer))):
@@ -133,13 +127,14 @@ def remove_spatial_bn_layers(caffenet, caffenet_weights):
         t.data_type = caffe2_pb2.TensorProto.FLOAT
         t.dims.extend(shape.dim)
         t.float_data.extend(arr)
-        assert len(t.float_data) == np.prod(t.dims), 'Data size, shape mismatch'
+        assert len(t.float_data) == np.prod(
+            t.dims), "Data size, shape mismatch"
         return t
 
     bn_tensors = []
     for (bn, scl) in zip(bn_layers[0::2], bn_layers[1::2]):
-        assert bn.name[len('bn'):] == scl.name[len('scale'):], 'Pair mismatch'
-        blob_out = 'res' + bn.name[len('bn'):] + '_bn'
+        assert bn.name[len("bn"):] == scl.name[len("scale"):], "Pair mismatch"
+        blob_out = "res" + bn.name[len("bn"):] + "_bn"
         bn_mean = np.asarray(bn.blobs[0].data)
         bn_var = np.asarray(bn.blobs[1].data)
         scale = np.asarray(scl.blobs[0].data)
@@ -147,12 +142,10 @@ def remove_spatial_bn_layers(caffenet, caffenet_weights):
         std = np.sqrt(bn_var + 1e-5)
         new_scale = scale / std
         new_bias = bias - bn_mean * scale / std
-        new_scale_tensor = _create_tensor(
-            new_scale, bn.blobs[0].shape, blob_out + '_s'
-        )
-        new_bias_tensor = _create_tensor(
-            new_bias, bn.blobs[0].shape, blob_out + '_b'
-        )
+        new_scale_tensor = _create_tensor(new_scale, bn.blobs[0].shape,
+                                          blob_out + "_s")
+        new_bias_tensor = _create_tensor(new_bias, bn.blobs[0].shape,
+                                         blob_out + "_b")
         bn_tensors.extend([new_scale_tensor, new_bias_tensor])
     return bn_tensors
 
@@ -168,8 +161,8 @@ def remove_layers_without_parameters(caffenet, caffenet_weights):
                     caffenet.layer.pop(j)
                     found = True
                     break
-            if not found and name[-len('_split'):] != '_split':
-                print('Warning: layer {} not found in caffenet'.format(name))
+            if not found and name[-len("_split"):] != "_split":
+                print("Warning: layer {} not found in caffenet".format(name))
             caffenet_weights.layer.pop(i)
 
 
@@ -207,19 +200,17 @@ def load_and_convert_caffe_model(prototxt_file_name, caffemodel_file_name):
     normalize_shape(caffenet_weights)
     # Translate the rest of the model
     net, pretrained_weights = caffe_translator.TranslateModel(
-        caffenet, caffenet_weights
-    )
+        caffenet, caffenet_weights)
     pretrained_weights.protos.extend(bn_weights)
     return net, pretrained_weights
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     args = parse_args()
-    assert os.path.exists(args.prototxt_file_name), \
-        'Prototxt file does not exist'
-    assert os.path.exists(args.caffemodel_file_name), \
-        'Weights file does not exist'
-    net, weights = load_and_convert_caffe_model(
-        args.prototxt_file_name, args.caffemodel_file_name
-    )
+    assert os.path.exists(
+        args.prototxt_file_name), "Prototxt file does not exist"
+    assert os.path.exists(
+        args.caffemodel_file_name), "Weights file does not exist"
+    net, weights = load_and_convert_caffe_model(args.prototxt_file_name,
+                                                args.caffemodel_file_name)
     pickle_weights(args.out_file_name, weights)

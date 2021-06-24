@@ -12,22 +12,20 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 ##############################################################################
-
 """Minibatch construction for Region Proposal Networks (RPN)."""
 
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-from __future__ import unicode_literals
+from __future__ import (absolute_import, division, print_function,
+                        unicode_literals)
 
 import logging
+
 import numpy as np
 import numpy.random as npr
 
-from detectron.core.config import cfg
 import detectron.roi_data.data_utils as data_utils
 import detectron.utils.blob as blob_utils
 import detectron.utils.boxes as box_utils
+from detectron.core.config import cfg
 
 logger = logging.getLogger(__name__)
 
@@ -35,26 +33,26 @@ logger = logging.getLogger(__name__)
 def get_rpn_blob_names(is_training=True):
     """Blob names used by RPN."""
     # im_info: (height, width, image scale)
-    blob_names = ['im_info']
+    blob_names = ["im_info"]
     if is_training:
         # gt boxes: (batch_idx, x1, y1, x2, y2, cls)
-        blob_names += ['roidb']
+        blob_names += ["roidb"]
         if cfg.FPN.FPN_ON and cfg.FPN.MULTILEVEL_RPN:
             # Same format as RPN blobs, but one per FPN level
             for lvl in range(cfg.FPN.RPN_MIN_LEVEL, cfg.FPN.RPN_MAX_LEVEL + 1):
                 blob_names += [
-                    'rpn_labels_int32_wide_fpn' + str(lvl),
-                    'rpn_bbox_targets_wide_fpn' + str(lvl),
-                    'rpn_bbox_inside_weights_wide_fpn' + str(lvl),
-                    'rpn_bbox_outside_weights_wide_fpn' + str(lvl)
+                    "rpn_labels_int32_wide_fpn" + str(lvl),
+                    "rpn_bbox_targets_wide_fpn" + str(lvl),
+                    "rpn_bbox_inside_weights_wide_fpn" + str(lvl),
+                    "rpn_bbox_outside_weights_wide_fpn" + str(lvl),
                 ]
         else:
             # Single level RPN blobs
             blob_names += [
-                'rpn_labels_int32_wide',
-                'rpn_bbox_targets_wide',
-                'rpn_bbox_inside_weights_wide',
-                'rpn_bbox_outside_weights_wide'
+                "rpn_labels_int32_wide",
+                "rpn_bbox_targets_wide",
+                "rpn_bbox_inside_weights_wide",
+                "rpn_bbox_outside_weights_wide",
             ]
     return blob_names
 
@@ -67,45 +65,41 @@ def add_rpn_blobs(blobs, im_scales, roidb):
         k_min = cfg.FPN.RPN_MIN_LEVEL
         foas = []
         for lvl in range(k_min, k_max + 1):
-            field_stride = 2.**lvl
-            anchor_sizes = (cfg.FPN.RPN_ANCHOR_START_SIZE * 2.**(lvl - k_min), )
+            field_stride = 2.0**lvl
+            anchor_sizes = (cfg.FPN.RPN_ANCHOR_START_SIZE *
+                            2.0**(lvl - k_min), )
             anchor_aspect_ratios = cfg.FPN.RPN_ASPECT_RATIOS
-            foa = data_utils.get_field_of_anchors(
-                field_stride, anchor_sizes, anchor_aspect_ratios
-            )
+            foa = data_utils.get_field_of_anchors(field_stride, anchor_sizes,
+                                                  anchor_aspect_ratios)
             foas.append(foa)
         all_anchors = np.concatenate([f.field_of_anchors for f in foas])
     else:
-        foa = data_utils.get_field_of_anchors(
-            cfg.RPN.STRIDE, cfg.RPN.SIZES, cfg.RPN.ASPECT_RATIOS
-        )
+        foa = data_utils.get_field_of_anchors(cfg.RPN.STRIDE, cfg.RPN.SIZES,
+                                              cfg.RPN.ASPECT_RATIOS)
         all_anchors = foa.field_of_anchors
 
     for im_i, entry in enumerate(roidb):
         scale = im_scales[im_i]
-        im_height = np.round(entry['height'] * scale)
-        im_width = np.round(entry['width'] * scale)
-        gt_inds = np.where(
-            (entry['gt_classes'] > 0) & (entry['is_crowd'] == 0)
-        )[0]
-        gt_rois = entry['boxes'][gt_inds, :] * scale
+        im_height = np.round(entry["height"] * scale)
+        im_width = np.round(entry["width"] * scale)
+        gt_inds = np.where((entry["gt_classes"] > 0)
+                           & (entry["is_crowd"] == 0))[0]
+        gt_rois = entry["boxes"][gt_inds, :] * scale
         im_info = np.array([[im_height, im_width, scale]], dtype=np.float32)
-        blobs['im_info'].append(im_info)
+        blobs["im_info"].append(im_info)
 
         # Add RPN targets
         if cfg.FPN.FPN_ON and cfg.FPN.MULTILEVEL_RPN:
             # RPN applied to many feature levels, as in the FPN paper
-            rpn_blobs = _get_rpn_blobs(
-                im_height, im_width, foas, all_anchors, gt_rois
-            )
+            rpn_blobs = _get_rpn_blobs(im_height, im_width, foas, all_anchors,
+                                       gt_rois)
             for i, lvl in enumerate(range(k_min, k_max + 1)):
                 for k, v in rpn_blobs[i].items():
-                    blobs[k + '_fpn' + str(lvl)].append(v)
+                    blobs[k + "_fpn" + str(lvl)].append(v)
         else:
             # Classical RPN, applied to a single feature level
-            rpn_blobs = _get_rpn_blobs(
-                im_height, im_width, [foa], all_anchors, gt_rois
-            )
+            rpn_blobs = _get_rpn_blobs(im_height, im_width, [foa], all_anchors,
+                                       gt_rois)
             for k, v in rpn_blobs.items():
                 blobs[k].append(v)
 
@@ -114,15 +108,22 @@ def add_rpn_blobs(blobs, im_scales, roidb):
             blobs[k] = np.concatenate(v)
 
     valid_keys = [
-        'has_visible_keypoints', 'boxes', 'segms', 'seg_areas', 'gt_classes',
-        'gt_overlaps', 'is_crowd', 'box_to_gt_ind_map', 'gt_keypoints'
+        "has_visible_keypoints",
+        "boxes",
+        "segms",
+        "seg_areas",
+        "gt_classes",
+        "gt_overlaps",
+        "is_crowd",
+        "box_to_gt_ind_map",
+        "gt_keypoints",
     ]
     minimal_roidb = [{} for _ in range(len(roidb))]
     for i, e in enumerate(roidb):
         for k in valid_keys:
             if k in e:
                 minimal_roidb[i][k] = e[k]
-    blobs['roidb'] = blob_utils.serialize(minimal_roidb)
+    blobs["roidb"] = blob_utils.serialize(minimal_roidb)
 
     # Always return valid=True, since RPN minibatches are valid by design
     return True
@@ -137,11 +138,10 @@ def _get_rpn_blobs(im_height, im_width, foas, all_anchors, gt_boxes):
         # Set TRAIN.RPN_STRADDLE_THRESH to -1 (or a large value) to keep all
         # anchors
         inds_inside = np.where(
-            (all_anchors[:, 0] >= -straddle_thresh) &
-            (all_anchors[:, 1] >= -straddle_thresh) &
-            (all_anchors[:, 2] < im_width + straddle_thresh) &
-            (all_anchors[:, 3] < im_height + straddle_thresh)
-        )[0]
+            (all_anchors[:, 0] >= -straddle_thresh)
+            & (all_anchors[:, 1] >= -straddle_thresh)
+            & (all_anchors[:, 2] < im_width + straddle_thresh)
+            & (all_anchors[:, 3] < im_height + straddle_thresh))[0]
         # keep only inside anchors
         anchors = all_anchors[inds_inside, :]
     else:
@@ -149,9 +149,9 @@ def _get_rpn_blobs(im_height, im_width, foas, all_anchors, gt_boxes):
         anchors = all_anchors
     num_inside = len(inds_inside)
 
-    logger.debug('total_anchors: {}'.format(total_anchors))
-    logger.debug('inds_inside: {}'.format(num_inside))
-    logger.debug('anchors.shape: {}'.format(anchors.shape))
+    logger.debug("total_anchors: {}".format(total_anchors))
+    logger.debug("inds_inside: {}".format(num_inside))
+    logger.debug("anchors.shape: {}".format(anchors.shape))
 
     # Compute anchor labels:
     # label=1 is positive, 0 is negative, -1 is don't care (ignore)
@@ -171,13 +171,11 @@ def _get_rpn_blobs(im_height, im_width, foas, all_anchors, gt_boxes):
         # For each gt box, amount of overlap with most overlapping anchor
         gt_to_anchor_max = anchor_by_gt_overlap[
             gt_to_anchor_argmax,
-            np.arange(anchor_by_gt_overlap.shape[1])
-        ]
+            np.arange(anchor_by_gt_overlap.shape[1])]
         # Find all anchors that share the max overlap amount
         # (this includes many ties)
         anchors_with_max_overlap = np.where(
-            anchor_by_gt_overlap == gt_to_anchor_max
-        )[0]
+            anchor_by_gt_overlap == gt_to_anchor_max)[0]
 
         # Fg label: for each gt use anchors with highest overlap
         # (including ties)
@@ -189,9 +187,9 @@ def _get_rpn_blobs(im_height, im_width, foas, all_anchors, gt_boxes):
     num_fg = int(cfg.TRAIN.RPN_FG_FRACTION * cfg.TRAIN.RPN_BATCH_SIZE_PER_IM)
     fg_inds = np.where(labels == 1)[0]
     if len(fg_inds) > num_fg:
-        disable_inds = npr.choice(
-            fg_inds, size=(len(fg_inds) - num_fg), replace=False
-        )
+        disable_inds = npr.choice(fg_inds,
+                                  size=(len(fg_inds) - num_fg),
+                                  replace=False)
         labels[disable_inds] = -1
     fg_inds = np.where(labels == 1)[0]
 
@@ -207,8 +205,7 @@ def _get_rpn_blobs(im_height, im_width, foas, all_anchors, gt_boxes):
 
     bbox_targets = np.zeros((num_inside, 4), dtype=np.float32)
     bbox_targets[fg_inds, :] = data_utils.compute_targets(
-        anchors[fg_inds, :], gt_boxes[anchor_to_gt_argmax[fg_inds], :]
-    )
+        anchors[fg_inds, :], gt_boxes[anchor_to_gt_argmax[fg_inds], :])
 
     # Bbox regression loss has the form:
     #   loss(x) = weight_outside * L(weight_inside * x)
@@ -231,15 +228,18 @@ def _get_rpn_blobs(im_height, im_width, foas, all_anchors, gt_boxes):
 
     # Map up to original set of anchors
     labels = data_utils.unmap(labels, total_anchors, inds_inside, fill=-1)
-    bbox_targets = data_utils.unmap(
-        bbox_targets, total_anchors, inds_inside, fill=0
-    )
-    bbox_inside_weights = data_utils.unmap(
-        bbox_inside_weights, total_anchors, inds_inside, fill=0
-    )
-    bbox_outside_weights = data_utils.unmap(
-        bbox_outside_weights, total_anchors, inds_inside, fill=0
-    )
+    bbox_targets = data_utils.unmap(bbox_targets,
+                                    total_anchors,
+                                    inds_inside,
+                                    fill=0)
+    bbox_inside_weights = data_utils.unmap(bbox_inside_weights,
+                                           total_anchors,
+                                           inds_inside,
+                                           fill=0)
+    bbox_outside_weights = data_utils.unmap(bbox_outside_weights,
+                                            total_anchors,
+                                            inds_inside,
+                                            fill=0)
 
     # Split the generated labels, etc. into labels per each field of anchors
     blobs_out = []
@@ -271,7 +271,6 @@ def _get_rpn_blobs(im_height, im_width, foas, all_anchors, gt_boxes):
                 rpn_labels_int32_wide=_labels,
                 rpn_bbox_targets_wide=_bbox_targets,
                 rpn_bbox_inside_weights_wide=_bbox_inside_weights,
-                rpn_bbox_outside_weights_wide=_bbox_outside_weights
-            )
-        )
+                rpn_bbox_outside_weights_wide=_bbox_outside_weights,
+            ))
     return blobs_out[0] if len(blobs_out) == 1 else blobs_out

@@ -22,58 +22,53 @@
 # Licensed under The MIT License [see LICENSE for details]
 # Written by Ross Girshick
 # --------------------------------------------------------
-
 """Reval = re-eval. Re-evaluate saved detections."""
 
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-from __future__ import unicode_literals
+from __future__ import (absolute_import, division, print_function,
+                        unicode_literals)
 
 import argparse
-import cPickle as pickle
 import os
 import sys
+
+import cPickle as pickle
 import yaml
 
+import detectron.core.config as core_config
 from detectron.core.config import cfg
 from detectron.datasets import task_evaluation
 from detectron.datasets.json_dataset import JsonDataset
 from detectron.utils.logging import setup_logging
-import detectron.core.config as core_config
 
 
 def parse_args():
-    parser = argparse.ArgumentParser(description='Re-evaluate results')
+    parser = argparse.ArgumentParser(description="Re-evaluate results")
+    parser.add_argument("output_dir",
+                        nargs=1,
+                        help="results directory",
+                        type=str)
     parser.add_argument(
-        'output_dir', nargs=1, help='results directory', type=str
+        "--dataset",
+        dest="dataset_name",
+        help="dataset to re-evaluate",
+        default="voc_2007_test",
+        type=str,
     )
     parser.add_argument(
-        '--dataset',
-        dest='dataset_name',
-        help='dataset to re-evaluate',
-        default='voc_2007_test',
-        type=str
+        "--matlab",
+        dest="matlab_eval",
+        help="use matlab for evaluation",
+        action="store_true",
     )
-    parser.add_argument(
-        '--matlab',
-        dest='matlab_eval',
-        help='use matlab for evaluation',
-        action='store_true'
-    )
-    parser.add_argument(
-        '--comp',
-        dest='comp_mode',
-        help='competition mode',
-        action='store_true'
-    )
-    parser.add_argument(
-        '--cfg',
-        dest='cfg_file',
-        help='optional config file',
-        default=None,
-        type=str
-    )
+    parser.add_argument("--comp",
+                        dest="comp_mode",
+                        help="competition mode",
+                        action="store_true")
+    parser.add_argument("--cfg",
+                        dest="cfg_file",
+                        help="optional config file",
+                        default=None,
+                        type=str)
 
     if len(sys.argv) == 1:
         parser.print_help()
@@ -85,25 +80,25 @@ def parse_args():
 
 def do_reval(dataset_name, output_dir, args):
     dataset = JsonDataset(dataset_name)
-    with open(os.path.join(output_dir, 'detections.pkl'), 'rb') as f:
+    with open(os.path.join(output_dir, "detections.pkl"), "rb") as f:
         dets = pickle.load(f)
     # Override config with the one saved in the detections file
     if args.cfg_file is not None:
-        core_config.merge_cfg_from_cfg(core_config.load_cfg(dets['cfg']))
+        core_config.merge_cfg_from_cfg(core_config.load_cfg(dets["cfg"]))
     else:
-        core_config._merge_a_into_b(core_config.load_cfg(dets['cfg']), cfg)
+        core_config._merge_a_into_b(core_config.load_cfg(dets["cfg"]), cfg)
     results = task_evaluation.evaluate_all(
         dataset,
-        dets['all_boxes'],
-        dets['all_segms'],
-        dets['all_keyps'],
+        dets["all_boxes"],
+        dets["all_segms"],
+        dets["all_keyps"],
         output_dir,
-        use_matlab=args.matlab_eval
+        use_matlab=args.matlab_eval,
     )
     task_evaluation.log_copy_paste_friendly_results(results)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     setup_logging(__name__)
     args = parse_args()
     if args.comp_mode:

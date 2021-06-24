@@ -12,7 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 ##############################################################################
-
 """Handle mapping from old network building function names to new names.
 
 Flexible network configuration is achieved by specifying the function name that
@@ -31,28 +30,24 @@ to perform the renaming:
   head_builder.add_roi_2mlp_head => fast_rcnn_heads.add_roi_2mlp_head
 """
 
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-from __future__ import unicode_literals
-
+from __future__ import (absolute_import, division, print_function,
+                        unicode_literals)
 
 _RENAME = {
     # Removed "ResNet_" from the name because it wasn't relevent
-    'mask_rcnn_heads.ResNet_mask_rcnn_fcn_head_v1up4convs':
-        'mask_rcnn_heads.mask_rcnn_fcn_head_v1up4convs',
+    "mask_rcnn_heads.ResNet_mask_rcnn_fcn_head_v1up4convs":
+    "mask_rcnn_heads.mask_rcnn_fcn_head_v1up4convs",
     # Removed "ResNet_" from the name because it wasn't relevent
-    'mask_rcnn_heads.ResNet_mask_rcnn_fcn_head_v1up':
-        'mask_rcnn_heads.mask_rcnn_fcn_head_v1up',
+    "mask_rcnn_heads.ResNet_mask_rcnn_fcn_head_v1up":
+    "mask_rcnn_heads.mask_rcnn_fcn_head_v1up",
     # Removed "ResNet_" from the name because it wasn't relevent
-    'mask_rcnn_heads.ResNet_mask_rcnn_fcn_head_v0upshare':
-        'mask_rcnn_heads.mask_rcnn_fcn_head_v0upshare',
+    "mask_rcnn_heads.ResNet_mask_rcnn_fcn_head_v0upshare":
+    "mask_rcnn_heads.mask_rcnn_fcn_head_v0upshare",
     # Removed "ResNet_" from the name because it wasn't relevent
-    'mask_rcnn_heads.ResNet_mask_rcnn_fcn_head_v0up':
-        'mask_rcnn_heads.mask_rcnn_fcn_head_v0up',
+    "mask_rcnn_heads.ResNet_mask_rcnn_fcn_head_v0up":
+    "mask_rcnn_heads.mask_rcnn_fcn_head_v0up",
     # Removed head_builder module in favor of the more specific fast_rcnn name
-    'head_builder.add_roi_2mlp_head':
-        'fast_rcnn_heads.add_roi_2mlp_head',
+    "head_builder.add_roi_2mlp_head": "fast_rcnn_heads.add_roi_2mlp_head",
 }
 
 

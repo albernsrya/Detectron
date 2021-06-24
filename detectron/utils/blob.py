@@ -20,18 +20,14 @@
 # Licensed under The MIT License [see LICENSE for details]
 # Written by Ross Girshick
 # --------------------------------------------------------
-
 """Caffe2 blob helper functions."""
 
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-from __future__ import unicode_literals
+from __future__ import (absolute_import, division, print_function,
+                        unicode_literals)
 
 import cPickle as pickle
-import numpy as np
 import cv2
-
+import numpy as np
 from caffe2.proto import caffe2_pb2
 
 from detectron.core.config import cfg
@@ -48,15 +44,15 @@ def get_image_blob(im, target_scale, target_max_size, size_fix=None):
         im_scale (float): image scale (target size) / (original size)
         im_info (ndarray)
     """
-    #print("scale={} max={}\n".format(target_scale, target_max_size))
+    # print("scale={} max={}\n".format(target_scale, target_max_size))
     processed_im = []
     for _, image in enumerate(im):
-        #print("preimage shape={}\n".format(image.shape))
-        processed_image, im_scale = prep_im_for_blob(
-            image, cfg.PIXEL_MEANS, target_scale, target_max_size, size_fix
-            )
+        # print("preimage shape={}\n".format(image.shape))
+        processed_image, im_scale = prep_im_for_blob(image, cfg.PIXEL_MEANS,
+                                                     target_scale,
+                                                     target_max_size, size_fix)
         processed_im.append(processed_image)
-        #print("afterimage shape={}\n".format(processed_image.shape))
+        # print("afterimage shape={}\n".format(processed_image.shape))
     blob = im_list_to_blob(processed_im)
     # NOTE: this height and width may be larger than actual scaled input image
     # due to the FPN.COARSEST_STRIDE related padding in im_list_to_blob. We are
@@ -90,9 +86,8 @@ def im_list_to_blob(ims):
         max_shape[1] = int(np.ceil(max_shape[1] / stride) * stride)
 
     num_images = len(ims)
-    blob = np.zeros(
-        (num_images, max_shape[0], max_shape[1], 3), dtype=np.float32
-    )
+    blob = np.zeros((num_images, max_shape[0], max_shape[1], 3),
+                    dtype=np.float32)
     for i in range(num_images):
         im = ims[i]
         blob[i, 0:im.shape[0], 0:im.shape[1], :] = im
@@ -117,23 +112,23 @@ def prep_im_for_blob(im, pixel_means, target_size, max_size, size_fix):
     im_size_min = np.min(im_shape[0:2])
     im_size_max = np.max(im_shape[0:2])
     if size_fix != True:
-        #print("size_max={} size_min={}\n".format( im_size_min, im_size_max))
+        # print("size_max={} size_min={}\n".format( im_size_min, im_size_max))
         im_scale = float(target_size) / float(im_size_min)
-        #print("pre im_scale={}\n".format( im_scale))
+        # print("pre im_scale={}\n".format( im_scale))
         # Prevent the biggest axis from being more than max_size
         if np.round(im_scale * im_size_max) > max_size:
             im_scale = float(max_size) / float(im_size_max)
-        #print("after im_scale={}\n".format( im_scale))
-        im = cv2.resize(
-            im,
-            None,
-            None,
-            fx=im_scale,
-            fy=im_scale,
-            interpolation=cv2.INTER_LINEAR
-        )
+        # print("after im_scale={}\n".format( im_scale))
+        im = cv2.resize(im,
+                        None,
+                        None,
+                        fx=im_scale,
+                        fy=im_scale,
+                        interpolation=cv2.INTER_LINEAR)
     else:
-        im = cv2.resize(im, dsize=(target_size, target_size), interpolation=cv2.INTER_LINEAR)
+        im = cv2.resize(im,
+                        dsize=(target_size, target_size),
+                        interpolation=cv2.INTER_LINEAR)
         im_scale = float(target_size) / float(im_size_min)
     return im, im_scale
 
@@ -175,7 +170,7 @@ def get_loss_gradients(model, loss_blobs):
     """Generate a gradient of 1 for each loss specified in 'loss_blobs'"""
     loss_gradients = {}
     for b in loss_blobs:
-        loss_grad = model.net.ConstantFill(b, [b + '_grad'], value=1.0)
+        loss_grad = model.net.ConstantFill(b, [b + "_grad"], value=1.0)
         loss_gradients[str(b)] = str(loss_grad)
     return loss_gradients
 

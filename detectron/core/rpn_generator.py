@@ -20,35 +20,31 @@
 # Licensed under The MIT License [see LICENSE for details]
 # Written by Ross Girshick
 # --------------------------------------------------------
-
 """Functions for RPN proposal generation."""
 
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-from __future__ import unicode_literals
+from __future__ import (absolute_import, division, print_function,
+                        unicode_literals)
 
-import cv2
 import datetime
 import logging
-import numpy as np
 import os
+
+import cv2
+import numpy as np
 import yaml
+from caffe2.python import core, workspace
 
-from caffe2.python import core
-from caffe2.python import workspace
-
+import detectron.utils.blob as blob_utils
+import detectron.utils.c2 as c2_utils
+import detectron.utils.env as envu
+import detectron.utils.net as nu
+import detectron.utils.subprocess as subprocess_utils
 from detectron.core.config import cfg
 from detectron.datasets import task_evaluation
 from detectron.datasets.json_dataset import JsonDataset
 from detectron.modeling import model_builder
 from detectron.utils.io import save_object
 from detectron.utils.timer import Timer
-import detectron.utils.blob as blob_utils
-import detectron.utils.c2 as c2_utils
-import detectron.utils.env as envu
-import detectron.utils.net as nu
-import detectron.utils.subprocess as subprocess_utils
 
 logger = logging.getLogger(__name__)
 
@@ -59,7 +55,7 @@ def generate_rpn_on_dataset(
     _proposal_file_ignored,
     output_dir,
     multi_gpu=False,
-    gpu_id=0
+    gpu_id=0,
 ):
     """Run inference on a dataset."""
     dataset = JsonDataset(dataset_name)
@@ -69,8 +65,7 @@ def generate_rpn_on_dataset(
         num_images = len(dataset.get_roidb())
         _boxes, _scores, _ids, rpn_file = multi_gpu_generate_rpn_on_dataset(
             weights_file, dataset_name, _proposal_file_ignored, num_images,
-            output_dir
-        )
+            output_dir)
     else:
         # Processes entire dataset range by default
         _boxes, _scores, _ids, rpn_file = generate_rpn_on_range(
@@ -78,44 +73,43 @@ def generate_rpn_on_dataset(
             dataset_name,
             _proposal_file_ignored,
             output_dir,
-            gpu_id=gpu_id
+            gpu_id=gpu_id,
         )
     test_timer.toc()
-    logger.info('Total inference time: {:.3f}s'.format(test_timer.average_time))
+    logger.info("Total inference time: {:.3f}s".format(
+        test_timer.average_time))
     return evaluate_proposal_file(dataset, rpn_file, output_dir)
 
 
-def multi_gpu_generate_rpn_on_dataset(
-    weights_file, dataset_name, _proposal_file_ignored, num_images, output_dir
-):
+def multi_gpu_generate_rpn_on_dataset(weights_file, dataset_name,
+                                      _proposal_file_ignored, num_images,
+                                      output_dir):
     """Multi-gpu inference on a dataset."""
     # Retrieve the test_net binary path
     binary_dir = envu.get_runtime_dir()
     binary_ext = envu.get_py_bin_ext()
-    binary = os.path.join(binary_dir, 'test_net' + binary_ext)
-    assert os.path.exists(binary), 'Binary \'{}\' not found'.format(binary)
+    binary = os.path.join(binary_dir, "test_net" + binary_ext)
+    assert os.path.exists(binary), "Binary '{}' not found".format(binary)
 
     # Pass the target dataset via the command line
-    opts = ['TEST.DATASETS', '("{}",)'.format(dataset_name)]
-    opts += ['TEST.WEIGHTS', weights_file]
+    opts = ["TEST.DATASETS", '("{}",)'.format(dataset_name)]
+    opts += ["TEST.WEIGHTS", weights_file]
 
     # Run inference in parallel in subprocesses
-    outputs = subprocess_utils.process_in_parallel(
-        'rpn_proposals', num_images, binary, output_dir, opts
-    )
+    outputs = subprocess_utils.process_in_parallel("rpn_proposals", num_images,
+                                                   binary, output_dir, opts)
 
     # Collate the results from each subprocess
     boxes, scores, ids = [], [], []
     for rpn_data in outputs:
-        boxes += rpn_data['boxes']
-        scores += rpn_data['scores']
-        ids += rpn_data['ids']
-    rpn_file = os.path.join(output_dir, 'rpn_proposals.pkl')
+        boxes += rpn_data["boxes"]
+        scores += rpn_data["scores"]
+        ids += rpn_data["ids"]
+    rpn_file = os.path.join(output_dir, "rpn_proposals.pkl")
     cfg_yaml = yaml.dump(cfg)
-    save_object(
-        dict(boxes=boxes, scores=scores, ids=ids, cfg=cfg_yaml), rpn_file
-    )
-    logger.info('Wrote RPN proposals to {}'.format(os.path.abspath(rpn_file)))
+    save_object(dict(boxes=boxes, scores=scores, ids=ids, cfg=cfg_yaml),
+                rpn_file)
+    logger.info("Wrote RPN proposals to {}".format(os.path.abspath(rpn_file)))
     return boxes, scores, ids, rpn_file
 
 
@@ -125,7 +119,7 @@ def generate_rpn_on_range(
     _proposal_file_ignored,
     output_dir,
     ind_range=None,
-    gpu_id=0
+    gpu_id=0,
 ):
     """Run inference on all images in a dataset or over an index range of images
     in a dataset using a single GPU.
@@ -133,15 +127,15 @@ def generate_rpn_on_range(
     assert cfg.MODEL.RPN_ONLY or cfg.MODEL.FASTER_RCNN
 
     roidb, start_ind, end_ind, total_num_images = get_roidb(
-        dataset_name, ind_range
-    )
-    logger.info(
-        'Output will be saved to: {:s}'.format(os.path.abspath(output_dir))
-    )
+        dataset_name, ind_range)
+    logger.info("Output will be saved to: {:s}".format(
+        os.path.abspath(output_dir)))
 
     model = model_builder.create(cfg.MODEL.TYPE, train=False, gpu_id=gpu_id)
     nu.initialize_gpu_from_weights_file(
-        model, weights_file, gpu_id=gpu_id,
+        model,
+        weights_file,
+        gpu_id=gpu_id,
     )
     model_builder.add_inference_inputs(model)
     workspace.CreateNet(model.net)
@@ -157,19 +151,22 @@ def generate_rpn_on_range(
 
     cfg_yaml = yaml.dump(cfg)
     if ind_range is not None:
-        rpn_name = 'rpn_proposals_range_%s_%s.pkl' % tuple(ind_range)
+        rpn_name = "rpn_proposals_range_%s_%s.pkl" % tuple(ind_range)
     else:
-        rpn_name = 'rpn_proposals.pkl'
+        rpn_name = "rpn_proposals.pkl"
     rpn_file = os.path.join(output_dir, rpn_name)
-    save_object(
-        dict(boxes=boxes, scores=scores, ids=ids, cfg=cfg_yaml), rpn_file
-    )
-    logger.info('Wrote RPN proposals to {}'.format(os.path.abspath(rpn_file)))
+    save_object(dict(boxes=boxes, scores=scores, ids=ids, cfg=cfg_yaml),
+                rpn_file)
+    logger.info("Wrote RPN proposals to {}".format(os.path.abspath(rpn_file)))
     return boxes, scores, ids, rpn_file
 
 
 def generate_proposals_on_roidb(
-    model, roidb, start_ind=None, end_ind=None, total_num_images=None,
+    model,
+    roidb,
+    start_ind=None,
+    end_ind=None,
+    total_num_images=None,
     gpu_id=0,
 ):
     """Generate RPN proposals on all images in an imdb."""
@@ -183,8 +180,8 @@ def generate_proposals_on_roidb(
         end_ind = num_images
         total_num_images = num_images
     for i in range(num_images):
-        roidb_ids[i] = roidb[i]['id']
-        im = cv2.imread(roidb[i]['image'])
+        roidb_ids[i] = roidb[i]["id"]
+        im = cv2.imread(roidb[i]["image"])
         with c2_utils.NamedCudaScope(gpu_id):
             _t.tic()
             roidb_boxes[i], roidb_scores[i] = im_proposals(model, im)
@@ -193,15 +190,16 @@ def generate_proposals_on_roidb(
             ave_time = _t.average_time
             eta_seconds = ave_time * (num_images - i - 1)
             eta = str(datetime.timedelta(seconds=int(eta_seconds)))
-            logger.info(
-                (
-                    'rpn_generate: range [{:d}, {:d}] of {:d}: '
-                    '{:d}/{:d} {:.3f}s (eta: {})'
-                ).format(
-                    start_ind + 1, end_ind, total_num_images, start_ind + i + 1,
-                    start_ind + num_images, ave_time, eta
-                )
-            )
+            logger.info(("rpn_generate: range [{:d}, {:d}] of {:d}: "
+                         "{:d}/{:d} {:.3f}s (eta: {})").format(
+                             start_ind + 1,
+                             end_ind,
+                             total_num_images,
+                             start_ind + i + 1,
+                             start_ind + num_images,
+                             ave_time,
+                             eta,
+            ))
 
     return roidb_boxes, roidb_scores, roidb_ids
 
@@ -209,21 +207,22 @@ def generate_proposals_on_roidb(
 def im_proposals(model, im):
     """Generate RPN proposals on a single image."""
     inputs = {}
-    inputs['data'], im_scale, inputs['im_info'] = \
-        blob_utils.get_image_blob(im, cfg.TEST.SCALE, cfg.TEST.MAX_SIZE)
+    inputs["data"], im_scale, inputs["im_info"] = blob_utils.get_image_blob(
+        im, cfg.TEST.SCALE, cfg.TEST.MAX_SIZE)
     for k, v in inputs.items():
-        workspace.FeedBlob(core.ScopedName(k), v.astype(np.float32, copy=False))
+        workspace.FeedBlob(core.ScopedName(k), v.astype(np.float32,
+                                                        copy=False))
     workspace.RunNet(model.net.Proto().name)
 
     if cfg.FPN.FPN_ON and cfg.FPN.MULTILEVEL_RPN:
         k_max = cfg.FPN.RPN_MAX_LEVEL
         k_min = cfg.FPN.RPN_MIN_LEVEL
         rois_names = [
-            core.ScopedName('rpn_rois_fpn' + str(l))
+            core.ScopedName("rpn_rois_fpn" + str(l))
             for l in range(k_min, k_max + 1)
         ]
         score_names = [
-            core.ScopedName('rpn_roi_probs_fpn' + str(l))
+            core.ScopedName("rpn_roi_probs_fpn" + str(l))
             for l in range(k_min, k_max + 1)
         ]
         blobs = workspace.FetchBlobs(rois_names + score_names)
@@ -239,9 +238,8 @@ def im_proposals(model, im):
         boxes = boxes[inds, :]
     else:
         boxes, scores = workspace.FetchBlobs(
-            [core.ScopedName('rpn_rois'),
-             core.ScopedName('rpn_roi_probs')]
-        )
+            [core.ScopedName("rpn_rois"),
+             core.ScopedName("rpn_roi_probs")])
         scores = scores.squeeze()
 
     # Column 0 is the batch index in the (batch ind, x1, y1, x2, y2) encoding,
@@ -275,6 +273,6 @@ def evaluate_proposal_file(dataset, proposal_file, output_dir):
     roidb = dataset.get_roidb(gt=True, proposal_file=proposal_file)
     results = task_evaluation.evaluate_box_proposals(dataset, roidb)
     task_evaluation.log_box_proposal_results(results)
-    recall_file = os.path.join(output_dir, 'rpn_proposal_recall.pkl')
+    recall_file = os.path.join(output_dir, "rpn_proposal_recall.pkl")
     save_object(results, recall_file)
     return results

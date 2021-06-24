@@ -12,7 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 ##############################################################################
-
 """Detectron model construction functions.
 
 Detectron supports a large number of model types. The configuration space is
@@ -30,34 +29,33 @@ A given model is made by combining many basic components. The result is flexible
 though somewhat complex to understand at first.
 """
 
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-from __future__ import unicode_literals
+from __future__ import (absolute_import, division, print_function,
+                        unicode_literals)
 
 import copy
 import importlib
 import logging
 
-from caffe2.python import core
-from caffe2.python import workspace
+from caffe2.python import core, workspace
 
-from detectron.core.config import cfg
-from detectron.modeling.detector import DetectionModelHelper
-from detectron.roi_data.loader import RoIDataLoader
 import detectron.modeling.fast_rcnn_heads as fast_rcnn_heads
 import detectron.modeling.keypoint_rcnn_heads as keypoint_rcnn_heads
 import detectron.modeling.mask_rcnn_heads as mask_rcnn_heads
 import detectron.modeling.name_compat as name_compat
 import detectron.modeling.optimizer as optim
+import detectron.modeling.ResNet as ResNet
 import detectron.modeling.retinanet_heads as retinanet_heads
 import detectron.modeling.rfcn_heads as rfcn_heads
 import detectron.modeling.rpn_heads as rpn_heads
+import detectron.modeling.VGG16 as VGG16
+import detectron.modeling.VGG_CNN_M_1024 as VGG_CNN_M_1024
 import detectron.roi_data.minibatch as roi_data_minibatch
 import detectron.utils.c2 as c2_utils
+from detectron.core.config import cfg
+from detectron.modeling.detector import DetectionModelHelper
+from detectron.roi_data.loader import RoIDataLoader
 
 logger = logging.getLogger(__name__)
-
 
 # ---------------------------------------------------------------------------- #
 # Generic recomposable model builders
@@ -71,14 +69,15 @@ logger = logging.getLogger(__name__)
 #   ROI_HEAD: ResNet.add_ResNet_roi_conv5_head
 # ---------------------------------------------------------------------------- #
 
+
 def generalized_rcnn(model):
     """This model type handles:
-      - Fast R-CNN
-      - RPN only (not integrated with Fast R-CNN)
-      - Faster R-CNN (stagewise training from NIPS paper)
-      - Faster R-CNN (end-to-end joint training)
-      - Mask R-CNN (stagewise training from NIPS paper)
-      - Mask R-CNN (end-to-end joint training)
+    - Fast R-CNN
+    - RPN only (not integrated with Fast R-CNN)
+    - Faster R-CNN (stagewise training from NIPS paper)
+    - Faster R-CNN (end-to-end joint training)
+    - Mask R-CNN (stagewise training from NIPS paper)
+    - Mask R-CNN (end-to-end joint training)
     """
     return build_generic_detection_model(
         model,
@@ -86,7 +85,7 @@ def generalized_rcnn(model):
         add_roi_box_head_func=get_func(cfg.FAST_RCNN.ROI_BOX_HEAD),
         add_roi_mask_head_func=get_func(cfg.MRCNN.ROI_MASK_HEAD),
         add_roi_keypoint_head_func=get_func(cfg.KRCNN.ROI_KEYPOINTS_HEAD),
-        freeze_conv_body=cfg.TRAIN.FREEZE_CONV_BODY
+        freeze_conv_body=cfg.TRAIN.FREEZE_CONV_BODY,
     )
 
 
@@ -104,6 +103,7 @@ def retinanet(model):
 # Helper functions for building various re-usable network bits
 # ---------------------------------------------------------------------------- #
 
+
 def create(model_type_func, train=False, gpu_id=0):
     """Generic model creation function that dispatches to specific model
     building functions.
@@ -117,7 +117,7 @@ def create(model_type_func, train=False, gpu_id=0):
         name=model_type_func,
         train=train,
         num_classes=cfg.MODEL.NUM_CLASSES,
-        init_params=train
+        init_params=train,
     )
     model.only_build_forward_pass = False
     model.target_gpu_id = gpu_id
@@ -129,26 +129,24 @@ def get_func(func_name):
     function in this module or the path to a function relative to the base
     'modeling' module.
     """
-    if func_name == '':
+    if func_name == "":
         return None
     new_func_name = name_compat.get_new_name(func_name)
     if new_func_name != func_name:
-        logger.warn(
-            'Remapping old function name: {} -> {}'.
-            format(func_name, new_func_name)
-        )
+        logger.warn("Remapping old function name: {} -> {}".format(
+            func_name, new_func_name))
         func_name = new_func_name
     try:
-        parts = func_name.split('.')
+        parts = func_name.split(".")
         # Refers to a function in this module
         if len(parts) == 1:
             return globals()[parts[0]]
         # Otherwise, assume we're referencing a module under modeling
-        module_name = 'detectron.modeling.' + '.'.join(parts[:-1])
+        module_name = "detectron.modeling." + ".".join(parts[:-1])
         module = importlib.import_module(module_name)
         return getattr(module, parts[-1])
     except Exception:
-        logger.error('Failed to find function: {}'.format(func_name))
+        logger.error("Failed to find function: {}".format(func_name))
         raise
 
 
@@ -158,7 +156,7 @@ def build_generic_detection_model(
     add_roi_box_head_func=None,
     add_roi_mask_head_func=None,
     add_roi_keypoint_head_func=None,
-    freeze_conv_body=False
+    freeze_conv_body=False,
 ):
     def _single_gpu_build_func(model):
         """Build the model on a single GPU. Can be called in a loop over GPUs
@@ -174,47 +172,46 @@ def build_generic_detection_model(
         if not model.train:  # == inference
             # Create a net that can be used to execute the conv body on an image
             # (without also executing RPN or any other network heads)
-            model.conv_body_net = model.net.Clone('conv_body_net')
+            model.conv_body_net = model.net.Clone("conv_body_net")
 
         head_loss_gradients = {
-            'rpn': None,
-            'box': None,
-            'mask': None,
-            'keypoints': None,
+            "rpn": None,
+            "box": None,
+            "mask": None,
+            "keypoints": None,
         }
 
         if cfg.RPN.RPN_ON:
             # Add the RPN head
-            head_loss_gradients['rpn'] = rpn_heads.add_generic_rpn_outputs(
-                model, blob_conv, dim_conv, spatial_scale_conv
-            )
+            head_loss_gradients["rpn"] = rpn_heads.add_generic_rpn_outputs(
+                model, blob_conv, dim_conv, spatial_scale_conv)
 
         if cfg.FPN.FPN_ON:
             # After adding the RPN head, restrict FPN blobs and scales to
             # those used in the RoI heads
             blob_conv, spatial_scale_conv = _narrow_to_fpn_roi_levels(
-                blob_conv, spatial_scale_conv
-            )
+                blob_conv, spatial_scale_conv)
 
         if not cfg.MODEL.RPN_ONLY:
             # Add the Fast R-CNN head
-            head_loss_gradients['box'] = _add_fast_rcnn_head(
+            head_loss_gradients["box"] = _add_fast_rcnn_head(
                 model, add_roi_box_head_func, blob_conv, dim_conv,
-                spatial_scale_conv
-            )
+                spatial_scale_conv)
 
         if cfg.MODEL.MASK_ON:
             # Add the mask head
-            head_loss_gradients['mask'] = _add_roi_mask_head(
+            head_loss_gradients["mask"] = _add_roi_mask_head(
                 model, add_roi_mask_head_func, blob_conv, dim_conv,
-                spatial_scale_conv
-            )
+                spatial_scale_conv)
 
         if cfg.MODEL.KEYPOINTS_ON:
             # Add the keypoint head
-            head_loss_gradients['keypoint'] = _add_roi_keypoint_head(
-                model, add_roi_keypoint_head_func, blob_conv, dim_conv,
-                spatial_scale_conv
+            head_loss_gradients["keypoint"] = _add_roi_keypoint_head(
+                model,
+                add_roi_keypoint_head_func,
+                blob_conv,
+                dim_conv,
+                spatial_scale_conv,
             )
 
         if model.train:
@@ -246,13 +243,11 @@ def _narrow_to_fpn_roi_levels(blobs, spatial_scales):
     return blobs[-num_roi_levels:], spatial_scales[-num_roi_levels:]
 
 
-def _add_fast_rcnn_head(
-    model, add_roi_box_head_func, blob_in, dim_in, spatial_scale_in
-):
+def _add_fast_rcnn_head(model, add_roi_box_head_func, blob_in, dim_in,
+                        spatial_scale_in):
     """Add a Fast R-CNN head to the model."""
-    blob_frcn, dim_frcn = add_roi_box_head_func(
-        model, blob_in, dim_in, spatial_scale_in
-    )
+    blob_frcn, dim_frcn = add_roi_box_head_func(model, blob_in, dim_in,
+                                                spatial_scale_in)
     fast_rcnn_heads.add_fast_rcnn_outputs(model, blob_frcn, dim_frcn)
     if model.train:
         loss_gradients = fast_rcnn_heads.add_fast_rcnn_losses(model)
@@ -261,29 +256,26 @@ def _add_fast_rcnn_head(
     return loss_gradients
 
 
-def _add_roi_mask_head(
-    model, add_roi_mask_head_func, blob_in, dim_in, spatial_scale_in
-):
+def _add_roi_mask_head(model, add_roi_mask_head_func, blob_in, dim_in,
+                       spatial_scale_in):
     """Add a mask prediction head to the model."""
     # Capture model graph before adding the mask head
     bbox_net = copy.deepcopy(model.net.Proto())
     # Add the mask head
     blob_mask_head, dim_mask_head = add_roi_mask_head_func(
-        model, blob_in, dim_in, spatial_scale_in
-    )
+        model, blob_in, dim_in, spatial_scale_in)
     # Add the mask output
-    blob_mask = mask_rcnn_heads.add_mask_rcnn_outputs(
-        model, blob_mask_head, dim_mask_head
-    )
+    blob_mask = mask_rcnn_heads.add_mask_rcnn_outputs(model, blob_mask_head,
+                                                      dim_mask_head)
 
     if not model.train:  # == inference
         # Inference uses a cascade of box predictions, then mask predictions.
         # This requires separate nets for box and mask prediction.
         # So we extract the mask prediction net, store it as its own network,
         # then restore model.net to be the bbox-only network
-        model.mask_net, blob_mask = c2_utils.SuffixNet(
-            'mask_net', model.net, len(bbox_net.op), blob_mask
-        )
+        model.mask_net, blob_mask = c2_utils.SuffixNet("mask_net", model.net,
+                                                       len(bbox_net.op),
+                                                       blob_mask)
         model.net._net = bbox_net
         loss_gradients = None
     else:
@@ -291,20 +283,17 @@ def _add_roi_mask_head(
     return loss_gradients
 
 
-def _add_roi_keypoint_head(
-    model, add_roi_keypoint_head_func, blob_in, dim_in, spatial_scale_in
-):
+def _add_roi_keypoint_head(model, add_roi_keypoint_head_func, blob_in, dim_in,
+                           spatial_scale_in):
     """Add a keypoint prediction head to the model."""
     # Capture model graph before adding the mask head
     bbox_net = copy.deepcopy(model.net.Proto())
     # Add the keypoint head
     blob_keypoint_head, dim_keypoint_head = add_roi_keypoint_head_func(
-        model, blob_in, dim_in, spatial_scale_in
-    )
+        model, blob_in, dim_in, spatial_scale_in)
     # Add the keypoint output
     blob_keypoint = keypoint_rcnn_heads.add_keypoint_outputs(
-        model, blob_keypoint_head, dim_keypoint_head
-    )
+        model, blob_keypoint_head, dim_keypoint_head)
 
     if not model.train:  # == inference
         # Inference uses a cascade of box predictions, then keypoint predictions
@@ -312,8 +301,7 @@ def _add_roi_keypoint_head(
         # So we extract the keypoint prediction net, store it as its own
         # network, then restore model.net to be the bbox-only network
         model.keypoint_net, keypoint_blob_out = c2_utils.SuffixNet(
-            'keypoint_net', model.net, len(bbox_net.op), blob_keypoint
-        )
+            "keypoint_net", model.net, len(bbox_net.op), blob_keypoint)
         model.net._net = bbox_net
         loss_gradients = None
     else:
@@ -328,8 +316,9 @@ def build_generic_rfcn_model(model, add_conv_body_func, dim_reduce=None):
         with name and device scoping to create a data parallel model."""
         blob, dim, spatial_scale = add_conv_body_func(model)
         if not model.train:
-            model.conv_body_net = model.net.Clone('conv_body_net')
-        rfcn_heads.add_rfcn_outputs(model, blob, dim, dim_reduce, spatial_scale)
+            model.conv_body_net = model.net.Clone("conv_body_net")
+        rfcn_heads.add_rfcn_outputs(model, blob, dim, dim_reduce,
+                                    spatial_scale)
         if model.train:
             loss_gradients = fast_rcnn_heads.add_fast_rcnn_losses(model)
         return loss_gradients if model.train else None
@@ -338,23 +327,20 @@ def build_generic_rfcn_model(model, add_conv_body_func, dim_reduce=None):
     return model
 
 
-def build_generic_retinanet_model(
-    model, add_conv_body_func, freeze_conv_body=False
-):
+def build_generic_retinanet_model(model,
+                                  add_conv_body_func,
+                                  freeze_conv_body=False):
     # TODO(rbg): fold this function into build_generic_detection_model
     def _single_gpu_build_func(model):
         """Builds the model on a single GPU. Can be called in a loop over GPUs
         with name and device scoping to create a data parallel model."""
         blobs, dim, spatial_scales = add_conv_body_func(model)
         if not model.train:
-            model.conv_body_net = model.net.Clone('conv_body_net')
-        retinanet_heads.add_fpn_retinanet_outputs(
-            model, blobs, dim, spatial_scales
-        )
+            model.conv_body_net = model.net.Clone("conv_body_net")
+        retinanet_heads.add_fpn_retinanet_outputs(model, blobs, dim,
+                                                  spatial_scales)
         if model.train:
-            loss_gradients = retinanet_heads.add_fpn_retinanet_losses(
-                model
-            )
+            loss_gradients = retinanet_heads.add_fpn_retinanet_losses(model)
         return loss_gradients if model.train else None
 
     optim.build_data_parallel_model(model, _single_gpu_build_func)
@@ -364,6 +350,7 @@ def build_generic_retinanet_model(
 # ---------------------------------------------------------------------------- #
 # Network inputs
 # ---------------------------------------------------------------------------- #
+
 
 def add_training_inputs(model, roidb=None):
     """Create network input ops and blobs used for training. To be called
@@ -378,14 +365,14 @@ def add_training_inputs(model, roidb=None):
     #   dataset, and then add the input ops after loading the dataset.
     #   Since we defer input op creation, we need to do a little bit of surgery
     #   to place the input ops at the start of the network op list.
-    assert model.train, 'Training inputs can only be added to a trainable model'
+    assert model.train, "Training inputs can only be added to a trainable model"
     if roidb is not None:
         # To make debugging easier you can set cfg.DATA_LOADER.NUM_THREADS = 1
         model.roi_data_loader = RoIDataLoader(
             roidb,
             num_loaders=cfg.DATA_LOADER.NUM_THREADS,
             minibatch_queue_size=cfg.DATA_LOADER.MINIBATCH_QUEUE_SIZE,
-            blobs_queue_capacity=cfg.DATA_LOADER.BLOBS_QUEUE_CAPACITY
+            blobs_queue_capacity=cfg.DATA_LOADER.BLOBS_QUEUE_CAPACITY,
         )
     orig_num_op = len(model.net._net.op)
     blob_names = roi_data_minibatch.get_minibatch_blob_names(is_training=True)
@@ -393,9 +380,8 @@ def add_training_inputs(model, roidb=None):
         with c2_utils.NamedCudaScope(gpu_id):
             for blob_name in blob_names:
                 workspace.CreateBlob(core.ScopedName(blob_name))
-            model.net.DequeueBlobs(
-                model.roi_data_loader._blobs_queue_name, blob_names
-            )
+            model.net.DequeueBlobs(model.roi_data_loader._blobs_queue_name,
+                                   blob_names)
     # A little op surgery to move input ops to the start of the net
     diff = len(model.net._net.op) - orig_num_op
     new_op = model.net._net.op[-diff:] + model.net._net.op[:-diff]
@@ -405,7 +391,6 @@ def add_training_inputs(model, roidb=None):
 
 def add_inference_inputs(model):
     """Create network input blobs used for inference."""
-
     def create_input_blobs_for_net(net_def):
         for op in net_def.op:
             for blob_in in op.input:
@@ -431,107 +416,91 @@ def add_inference_inputs(model):
 #
 # ---------------------------------------------------------------------------- #
 
-import detectron.modeling.ResNet as ResNet
-import detectron.modeling.VGG16 as VGG16
-import detectron.modeling.VGG_CNN_M_1024 as VGG_CNN_M_1024
-
 
 def fast_rcnn(model):
-    logger.warn('Deprecated: use `MODEL.TYPE: generalized_rcnn`.')
+    logger.warn("Deprecated: use `MODEL.TYPE: generalized_rcnn`.")
     return generalized_rcnn(model)
 
 
 def mask_rcnn(model):
-    logger.warn(
-        'Deprecated: use `MODEL.TYPE: generalized_rcnn` with '
-        '`MODEL.MASK_ON: True`'
-    )
+    logger.warn("Deprecated: use `MODEL.TYPE: generalized_rcnn` with "
+                "`MODEL.MASK_ON: True`")
     return generalized_rcnn(model)
 
 
 def keypoint_rcnn(model):
-    logger.warn(
-        'Deprecated: use `MODEL.TYPE: generalized_rcnn` with '
-        '`MODEL.KEYPOINTS_ON: True`'
-    )
+    logger.warn("Deprecated: use `MODEL.TYPE: generalized_rcnn` with "
+                "`MODEL.KEYPOINTS_ON: True`")
     return generalized_rcnn(model)
 
 
 def mask_and_keypoint_rcnn(model):
-    logger.warn(
-        'Deprecated: use `MODEL.TYPE: generalized_rcnn` with '
-        '`MODEL.MASK_ON: True and ``MODEL.KEYPOINTS_ON: True`'
-    )
+    logger.warn("Deprecated: use `MODEL.TYPE: generalized_rcnn` with "
+                "`MODEL.MASK_ON: True and ``MODEL.KEYPOINTS_ON: True`")
     return generalized_rcnn(model)
 
 
 def rpn(model):
-    logger.warn(
-        'Deprecated: use `MODEL.TYPE: generalized_rcnn` with '
-        '`MODEL.RPN_ONLY: True`'
-    )
+    logger.warn("Deprecated: use `MODEL.TYPE: generalized_rcnn` with "
+                "`MODEL.RPN_ONLY: True`")
     return generalized_rcnn(model)
 
 
 def fpn_rpn(model):
-    logger.warn(
-        'Deprecated: use `MODEL.TYPE: generalized_rcnn` with '
-        '`MODEL.RPN_ONLY: True` and FPN enabled via configs'
-    )
+    logger.warn("Deprecated: use `MODEL.TYPE: generalized_rcnn` with "
+                "`MODEL.RPN_ONLY: True` and FPN enabled via configs")
     return generalized_rcnn(model)
 
 
 def faster_rcnn(model):
-    logger.warn(
-        'Deprecated: use `MODEL.TYPE: generalized_rcnn` with '
-        '`MODEL.FASTER_RCNN: True`'
-    )
+    logger.warn("Deprecated: use `MODEL.TYPE: generalized_rcnn` with "
+                "`MODEL.FASTER_RCNN: True`")
     return generalized_rcnn(model)
 
 
 def fast_rcnn_frozen_features(model):
-    logger.warn('Deprecated: use `TRAIN.FREEZE_CONV_BODY: True` instead')
+    logger.warn("Deprecated: use `TRAIN.FREEZE_CONV_BODY: True` instead")
     return build_generic_detection_model(
         model,
         get_func(cfg.MODEL.CONV_BODY),
         add_roi_box_head_func=get_func(cfg.FAST_RCNN.ROI_BOX_HEAD),
-        freeze_conv_body=True
+        freeze_conv_body=True,
     )
 
 
 def rpn_frozen_features(model):
-    logger.warn('Deprecated: use `TRAIN.FREEZE_CONV_BODY: True` instead')
-    return build_generic_detection_model(
-        model, get_func(cfg.MODEL.CONV_BODY), freeze_conv_body=True
-    )
+    logger.warn("Deprecated: use `TRAIN.FREEZE_CONV_BODY: True` instead")
+    return build_generic_detection_model(model,
+                                         get_func(cfg.MODEL.CONV_BODY),
+                                         freeze_conv_body=True)
 
 
 def fpn_rpn_frozen_features(model):
-    logger.warn('Deprecated: use `TRAIN.FREEZE_CONV_BODY: True` instead')
-    return build_generic_detection_model(
-        model, get_func(cfg.MODEL.CONV_BODY), freeze_conv_body=True
-    )
+    logger.warn("Deprecated: use `TRAIN.FREEZE_CONV_BODY: True` instead")
+    return build_generic_detection_model(model,
+                                         get_func(cfg.MODEL.CONV_BODY),
+                                         freeze_conv_body=True)
 
 
 def mask_rcnn_frozen_features(model):
-    logger.warn('Deprecated: use `TRAIN.FREEZE_CONV_BODY: True` instead')
+    logger.warn("Deprecated: use `TRAIN.FREEZE_CONV_BODY: True` instead")
     return build_generic_detection_model(
         model,
         get_func(cfg.MODEL.CONV_BODY),
         add_roi_box_head_func=get_func(cfg.FAST_RCNN.ROI_BOX_HEAD),
         add_roi_mask_head_func=get_func(cfg.MRCNN.ROI_MASK_HEAD),
-        freeze_conv_body=True
+        freeze_conv_body=True,
     )
 
 
 def keypoint_rcnn_frozen_features(model):
-    logger.warn('Deprecated: use `TRAIN.FREEZE_CONV_BODY: True` instead')
+    logger.warn("Deprecated: use `TRAIN.FREEZE_CONV_BODY: True` instead")
     return build_generic_detection_model(
         model,
         get_func(cfg.MODEL.CONV_BODY),
         add_roi_box_head_func=get_func(cfg.FAST_RCNN.ROI_BOX_HEAD),
         add_roi_keypoint_head_func=get_func(cfg.KRCNN.ROI_KEYPOINTS_HEAD),
-        freeze_conv_body=True
+        freeze_conv_body=True,
     )
 
 
@@ -542,27 +511,26 @@ def keypoint_rcnn_frozen_features(model):
 
 def VGG_CNN_M_1024_fast_rcnn(model):
     return build_generic_detection_model(
-        model, VGG_CNN_M_1024.add_VGG_CNN_M_1024_conv5_body,
-        VGG_CNN_M_1024.add_VGG_CNN_M_1024_roi_fc_head
+        model,
+        VGG_CNN_M_1024.add_VGG_CNN_M_1024_conv5_body,
+        VGG_CNN_M_1024.add_VGG_CNN_M_1024_roi_fc_head,
     )
 
 
 def VGG16_fast_rcnn(model):
-    return build_generic_detection_model(
-        model, VGG16.add_VGG16_conv5_body, VGG16.add_VGG16_roi_fc_head
-    )
+    return build_generic_detection_model(model, VGG16.add_VGG16_conv5_body,
+                                         VGG16.add_VGG16_roi_fc_head)
 
 
 def ResNet50_fast_rcnn(model):
-    return build_generic_detection_model(
-        model, ResNet.add_ResNet50_conv4_body, ResNet.add_ResNet_roi_conv5_head
-    )
+    return build_generic_detection_model(model, ResNet.add_ResNet50_conv4_body,
+                                         ResNet.add_ResNet_roi_conv5_head)
 
 
 def ResNet101_fast_rcnn(model):
-    return build_generic_detection_model(
-        model, ResNet.add_ResNet101_conv4_body, ResNet.add_ResNet_roi_conv5_head
-    )
+    return build_generic_detection_model(model,
+                                         ResNet.add_ResNet101_conv4_body,
+                                         ResNet.add_ResNet_roi_conv5_head)
 
 
 def ResNet50_fast_rcnn_frozen_features(model):
@@ -570,7 +538,7 @@ def ResNet50_fast_rcnn_frozen_features(model):
         model,
         ResNet.add_ResNet50_conv4_body,
         ResNet.add_ResNet_roi_conv5_head,
-        freeze_conv_body=True
+        freeze_conv_body=True,
     )
 
 
@@ -579,7 +547,7 @@ def ResNet101_fast_rcnn_frozen_features(model):
         model,
         ResNet.add_ResNet101_conv4_body,
         ResNet.add_ResNet_roi_conv5_head,
-        freeze_conv_body=True
+        freeze_conv_body=True,
     )
 
 
@@ -590,8 +558,7 @@ def ResNet101_fast_rcnn_frozen_features(model):
 
 def VGG_CNN_M_1024_rpn(model):
     return build_generic_detection_model(
-        model, VGG_CNN_M_1024.add_VGG_CNN_M_1024_conv5_body
-    )
+        model, VGG_CNN_M_1024.add_VGG_CNN_M_1024_conv5_body)
 
 
 def VGG16_rpn(model):
@@ -603,33 +570,33 @@ def ResNet50_rpn_conv4(model):
 
 
 def ResNet101_rpn_conv4(model):
-    return build_generic_detection_model(model, ResNet.add_ResNet101_conv4_body)
+    return build_generic_detection_model(model,
+                                         ResNet.add_ResNet101_conv4_body)
 
 
 def VGG_CNN_M_1024_rpn_frozen_features(model):
     return build_generic_detection_model(
         model,
         VGG_CNN_M_1024.add_VGG_CNN_M_1024_conv5_body,
-        freeze_conv_body=True
-    )
+        freeze_conv_body=True)
 
 
 def VGG16_rpn_frozen_features(model):
-    return build_generic_detection_model(
-        model, VGG16.add_VGG16_conv5_body, freeze_conv_body=True
-    )
+    return build_generic_detection_model(model,
+                                         VGG16.add_VGG16_conv5_body,
+                                         freeze_conv_body=True)
 
 
 def ResNet50_rpn_conv4_frozen_features(model):
-    return build_generic_detection_model(
-        model, ResNet.add_ResNet50_conv4_body, freeze_conv_body=True
-    )
+    return build_generic_detection_model(model,
+                                         ResNet.add_ResNet50_conv4_body,
+                                         freeze_conv_body=True)
 
 
 def ResNet101_rpn_conv4_frozen_features(model):
-    return build_generic_detection_model(
-        model, ResNet.add_ResNet101_conv4_body, freeze_conv_body=True
-    )
+    return build_generic_detection_model(model,
+                                         ResNet.add_ResNet101_conv4_body,
+                                         freeze_conv_body=True)
 
 
 # ---------------------------------------------------------------------------- #
@@ -639,23 +606,21 @@ def ResNet101_rpn_conv4_frozen_features(model):
 
 def VGG16_faster_rcnn(model):
     assert cfg.MODEL.FASTER_RCNN
-    return build_generic_detection_model(
-        model, VGG16.add_VGG16_conv5_body, VGG16.add_VGG16_roi_fc_head
-    )
+    return build_generic_detection_model(model, VGG16.add_VGG16_conv5_body,
+                                         VGG16.add_VGG16_roi_fc_head)
 
 
 def ResNet50_faster_rcnn(model):
     assert cfg.MODEL.FASTER_RCNN
-    return build_generic_detection_model(
-        model, ResNet.add_ResNet50_conv4_body, ResNet.add_ResNet_roi_conv5_head
-    )
+    return build_generic_detection_model(model, ResNet.add_ResNet50_conv4_body,
+                                         ResNet.add_ResNet_roi_conv5_head)
 
 
 def ResNet101_faster_rcnn(model):
     assert cfg.MODEL.FASTER_RCNN
-    return build_generic_detection_model(
-        model, ResNet.add_ResNet101_conv4_body, ResNet.add_ResNet_roi_conv5_head
-    )
+    return build_generic_detection_model(model,
+                                         ResNet.add_ResNet101_conv4_body,
+                                         ResNet.add_ResNet_roi_conv5_head)
 
 
 # ---------------------------------------------------------------------------- #
@@ -664,12 +629,12 @@ def ResNet101_faster_rcnn(model):
 
 
 def ResNet50_rfcn(model):
-    return build_generic_rfcn_model(
-        model, ResNet.add_ResNet50_conv5_body, dim_reduce=1024
-    )
+    return build_generic_rfcn_model(model,
+                                    ResNet.add_ResNet50_conv5_body,
+                                    dim_reduce=1024)
 
 
 def ResNet101_rfcn(model):
-    return build_generic_rfcn_model(
-        model, ResNet.add_ResNet101_conv5_body, dim_reduce=1024
-    )
+    return build_generic_rfcn_model(model,
+                                    ResNet.add_ResNet101_conv5_body,
+                                    dim_reduce=1024)
