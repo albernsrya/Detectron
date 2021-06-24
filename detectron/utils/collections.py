@@ -12,18 +12,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 ##############################################################################
-
 """A simple attribute dictionary used for representing configuration options."""
 
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-from __future__ import unicode_literals
+from __future__ import (absolute_import, division, print_function,
+                        unicode_literals)
 
 
 class AttrDict(dict):
 
-    IMMUTABLE = '__immutable__'
+    IMMUTABLE = "__immutable__"
 
     def __init__(self, *args, **kwargs):
         super(AttrDict, self).__init__(*args, **kwargs)
@@ -46,8 +43,7 @@ class AttrDict(dict):
         else:
             raise AttributeError(
                 'Attempted to set "{}" to "{}", but AttrDict is immutable'.
-                format(name, value)
-            )
+                format(name, value))
 
     def immutable(self, is_immutable):
         """Set immutability to is_immutable and recursively apply the setting

@@ -12,28 +12,26 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 ##############################################################################
-
 """Utilities for logging."""
 
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-from __future__ import unicode_literals
+from __future__ import (absolute_import, division, print_function,
+                        unicode_literals)
 
-from collections import deque
-from email.mime.text import MIMEText
 import json
 import logging
-import numpy as np
 import smtplib
 import sys
+from collections import deque
+from email.mime.text import MIMEText
+
+import numpy as np
 
 # Print lower precision floating point values than default FLOAT_REPR
-json.encoder.FLOAT_REPR = lambda o: format(o, '.6f')
+json.encoder.FLOAT_REPR = lambda o: format(o, ".6f")
 
 
 def log_json_stats(stats, sort_keys=True):
-    print('json_stats: {:s}'.format(json.dumps(stats, sort_keys=sort_keys)))
+    print("json_stats: {:s}".format(json.dumps(stats, sort_keys=sort_keys)))
 
 
 class SmoothedValue(object):
@@ -64,15 +62,15 @@ class SmoothedValue(object):
 
 
 def send_email(subject, body, to):
-    s = smtplib.SMTP('localhost')
+    s = smtplib.SMTP("localhost")
     mime = MIMEText(body)
-    mime['Subject'] = subject
-    mime['To'] = to
-    s.sendmail('detectron', to, mime.as_string())
+    mime["Subject"] = subject
+    mime["To"] = to
+    s.sendmail("detectron", to, mime.as_string())
 
 
 def setup_logging(name):
-    FORMAT = '%(levelname)s %(filename)s:%(lineno)4d: %(message)s'
+    FORMAT = "%(levelname)s %(filename)s:%(lineno)4d: %(message)s"
     # Manually clear root loggers to prevent any module that may have called
     # logging.basicConfig() from blocking our logging setup
     logging.root.handlers = []

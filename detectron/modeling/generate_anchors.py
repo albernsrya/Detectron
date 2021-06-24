@@ -51,9 +51,9 @@ import numpy as np
 #        [-167., -343.,  184.,  360.]])
 
 
-def generate_anchors(
-    stride=16, sizes=(32, 64, 128, 256, 512), aspect_ratios=(0.5, 1, 2)
-):
+def generate_anchors(stride=16,
+                     sizes=(32, 64, 128, 256, 512),
+                     aspect_ratios=(0.5, 1, 2)):
     """Generates a matrix of anchor boxes in (x1, y1, x2, y2) format. Anchors
     are centered on stride / 2, have (approximate) sqrt areas of the specified
     sizes, and aspect ratios as given.
@@ -61,7 +61,7 @@ def generate_anchors(
     return _generate_anchors(
         stride,
         np.array(sizes, dtype=np.float) / stride,
-        np.array(aspect_ratios, dtype=np.float)
+        np.array(aspect_ratios, dtype=np.float),
     )
 
 
@@ -72,8 +72,7 @@ def _generate_anchors(base_size, scales, aspect_ratios):
     anchor = np.array([1, 1, base_size, base_size], dtype=np.float) - 1
     anchors = _ratio_enum(anchor, aspect_ratios)
     anchors = np.vstack(
-        [_scale_enum(anchors[i, :], scales) for i in range(anchors.shape[0])]
-    )
+        [_scale_enum(anchors[i, :], scales) for i in range(anchors.shape[0])])
     return anchors
 
 
@@ -92,14 +91,12 @@ def _mkanchors(ws, hs, x_ctr, y_ctr):
     """
     ws = ws[:, np.newaxis]
     hs = hs[:, np.newaxis]
-    anchors = np.hstack(
-        (
-            x_ctr - 0.5 * (ws - 1),
-            y_ctr - 0.5 * (hs - 1),
-            x_ctr + 0.5 * (ws - 1),
-            y_ctr + 0.5 * (hs - 1)
-        )
-    )
+    anchors = np.hstack((
+        x_ctr - 0.5 * (ws - 1),
+        y_ctr - 0.5 * (hs - 1),
+        x_ctr + 0.5 * (ws - 1),
+        y_ctr + 0.5 * (hs - 1),
+    ))
     return anchors
 
 

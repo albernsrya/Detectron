@@ -14,7 +14,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 ##############################################################################
-
 """Perform inference on a single image or all images with a certain extension
 (e.g., .jpg) in a folder. Allows for using a combination of multiple models.
 For example, one model may be used for RPN, another model for Fast R-CNN style
@@ -22,32 +21,27 @@ box detection, yet another model to predict masks, and yet another model to
 predict keypoints.
 """
 
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-from __future__ import unicode_literals
+from __future__ import (absolute_import, division, print_function,
+                        unicode_literals)
 
 import argparse
-import cv2  # NOQA (Must import before importing caffe2 due to bug in cv2)
 import logging
 import os
 import sys
-import yaml
 
+import cv2  # NOQA (Must import before importing caffe2 due to bug in cv2)
+import yaml
 from caffe2.python import workspace
 
-from detectron.core.config import assert_and_infer_cfg
-from detectron.core.config import cfg
-from detectron.core.config import load_cfg
-from detectron.core.config import merge_cfg_from_cfg
-from detectron.core.config import merge_cfg_from_file
-from detectron.utils.io import cache_url
-from detectron.utils.logging import setup_logging
 import detectron.core.rpn_generator as rpn_engine
 import detectron.core.test_engine as model_engine
 import detectron.datasets.dummy_datasets as dummy_datasets
 import detectron.utils.c2 as c2_utils
 import detectron.utils.vis as vis_utils
+from detectron.core.config import (assert_and_infer_cfg, cfg, load_cfg,
+                                   merge_cfg_from_cfg, merge_cfg_from_file)
+from detectron.utils.io import cache_url
+from detectron.utils.logging import setup_logging
 
 c2_utils.import_detectron_ops()
 
@@ -64,36 +58,36 @@ cv2.ocl.setUseOpenCL(False)
 
 
 def parse_args():
-    parser = argparse.ArgumentParser(description='Inference on an image')
+    parser = argparse.ArgumentParser(description="Inference on an image")
+    parser.add_argument("--im",
+                        dest="im_file",
+                        help="input image",
+                        default=None,
+                        type=str)
+    parser.add_argument("--rpn-pkl",
+                        dest="rpn_pkl",
+                        help="rpn model file (pkl)",
+                        default=None,
+                        type=str)
     parser.add_argument(
-        '--im', dest='im_file', help='input image', default=None, type=str
-    )
-    parser.add_argument(
-        '--rpn-pkl',
-        dest='rpn_pkl',
-        help='rpn model file (pkl)',
+        "--rpn-cfg",
+        dest="rpn_cfg",
+        help="cfg model file (yaml)",
         default=None,
-        type=str
+        type=str,
     )
     parser.add_argument(
-        '--rpn-cfg',
-        dest='rpn_cfg',
-        help='cfg model file (yaml)',
+        "--output-dir",
+        dest="output_dir",
+        help="directory for visualization pdfs (default: /tmp/infer)",
+        default="/tmp/infer",
+        type=str,
+    )
+    parser.add_argument(
+        "models_to_run",
+        help="pairs of models & configs, listed like so: [pkl1] [yaml1] [pkl2] [yaml2] ...",
         default=None,
-        type=str
-    )
-    parser.add_argument(
-        '--output-dir',
-        dest='output_dir',
-        help='directory for visualization pdfs (default: /tmp/infer)',
-        default='/tmp/infer',
-        type=str
-    )
-    parser.add_argument(
-        'models_to_run',
-        help='pairs of models & configs, listed like so: [pkl1] [yaml1] [pkl2] [yaml2] ...',
-        default=None,
-        nargs=argparse.REMAINDER
+        nargs=argparse.REMAINDER,
     )
     if len(sys.argv) == 1:
         parser.print_help()
@@ -143,17 +137,16 @@ def main(args):
         assert_and_infer_cfg(cache_urls=False)
         model = model_engine.initialize_model_from_cfg(weights_file)
         with c2_utils.NamedCudaScope(0):
-            cls_boxes_, cls_segms_, cls_keyps_ = \
-                model_engine.im_detect_all(model, im, proposal_boxes)
+            cls_boxes_, cls_segms_, cls_keyps_ = model_engine.im_detect_all(
+                model, im, proposal_boxes)
         cls_boxes = cls_boxes_ if cls_boxes_ is not None else cls_boxes
         cls_segms = cls_segms_ if cls_segms_ is not None else cls_segms
         cls_keyps = cls_keyps_ if cls_keyps_ is not None else cls_keyps
         workspace.ResetWorkspace()
 
     out_name = os.path.join(
-        args.output_dir, '{}'.format(os.path.basename(args.im_file) + '.pdf')
-    )
-    logger.info('Processing {} -> {}'.format(args.im_file, out_name))
+        args.output_dir, "{}".format(os.path.basename(args.im_file) + ".pdf"))
+    logger.info("Processing {} -> {}".format(args.im_file, out_name))
 
     vis_utils.vis_one_image(
         im[:, :, ::-1],
@@ -166,15 +159,14 @@ def main(args):
         box_alpha=0.3,
         show_class=True,
         thresh=0.7,
-        kp_thresh=2
+        kp_thresh=2,
     )
 
 
 def check_args(args):
-    assert (
-        (args.rpn_pkl is not None and args.rpn_cfg is not None) or
-        (args.rpn_pkl is None and args.rpn_cfg is None)
-    )
+    assert (args.rpn_pkl is not None
+            and args.rpn_cfg is not None) or (args.rpn_pkl is None
+                                              and args.rpn_cfg is None)
     if args.rpn_pkl is not None:
         args.rpn_pkl = cache_url(args.rpn_pkl, cfg.DOWNLOAD_CACHE)
         assert os.path.exists(args.rpn_pkl)
@@ -186,12 +178,12 @@ def check_args(args):
                 if i % 2 == 0:
                     model_file = cache_url(model_file, cfg.DOWNLOAD_CACHE)
                     args.models_to_run[i] = model_file
-                assert os.path.exists(model_file), \
-                    '\'{}\' does not exist'.format(model_file)
+                assert os.path.exists(
+                    model_file), "'{}' does not exist".format(model_file)
 
 
-if __name__ == '__main__':
-    workspace.GlobalInit(['caffe2', '--caffe2_log_level=0'])
+if __name__ == "__main__":
+    workspace.GlobalInit(["caffe2", "--caffe2_log_level=0"])
     setup_logging(__name__)
     args = parse_args()
     check_args(args)

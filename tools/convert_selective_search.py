@@ -14,31 +14,29 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 ##############################################################################
-
 """Script to convert Selective Search proposal boxes into the Detectron proposal
 file format.
 """
 
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-from __future__ import unicode_literals
+from __future__ import (absolute_import, division, print_function,
+                        unicode_literals)
+
+import sys
 
 import cPickle as pickle
 import numpy as np
 import scipy.io as sio
-import sys
 
 from detectron.datasets.json_dataset import JsonDataset
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     dataset_name = sys.argv[1]
     file_in = sys.argv[2]
     file_out = sys.argv[3]
 
     ds = JsonDataset(dataset_name)
     roidb = ds.get_roidb()
-    raw_data = sio.loadmat(file_in)['boxes'].ravel()
+    raw_data = sio.loadmat(file_in)["boxes"].ravel()
     assert raw_data.shape[0] == len(roidb)
 
     boxes = []
@@ -46,15 +44,13 @@ if __name__ == '__main__':
     ids = []
     for i in range(raw_data.shape[0]):
         if i % 1000 == 0:
-            print('{}/{}'.format(i + 1, len(roidb)))
+            print("{}/{}".format(i + 1, len(roidb)))
         # selective search boxes are 1-indexed and (y1, x1, y2, x2)
         i_boxes = raw_data[i][:, (1, 0, 3, 2)] - 1
         boxes.append(i_boxes.astype(np.float32))
         scores.append(np.zeros((i_boxes.shape[0]), dtype=np.float32))
-        ids.append(roidb[i]['id'])
+        ids.append(roidb[i]["id"])
 
-    with open(file_out, 'wb') as f:
-        pickle.dump(
-            dict(boxes=boxes, scores=scores, indexes=ids), f,
-            pickle.HIGHEST_PROTOCOL
-        )
+    with open(file_out, "wb") as f:
+        pickle.dump(dict(boxes=boxes, scores=scores, indexes=ids), f,
+                    pickle.HIGHEST_PROTOCOL)

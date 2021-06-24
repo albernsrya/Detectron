@@ -13,20 +13,19 @@
 # limitations under the License.
 ##############################################################################
 
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-from __future__ import unicode_literals
+from __future__ import (absolute_import, division, print_function,
+                        unicode_literals)
 
 import copy
 import tempfile
 import unittest
+
 import yaml
 
-from detectron.core.config import cfg
-from detectron.utils.collections import AttrDict
 import detectron.core.config as core_config
 import detectron.utils.logging as logging_utils
+from detectron.core.config import cfg
+from detectron.utils.collections import AttrDict
 
 
 class TestAttrDict(unittest.TestCase):
@@ -68,26 +67,26 @@ class TestCfg(unittest.TestCase):
     def test_copy_cfg(self):
         cfg2 = copy.deepcopy(cfg)
         s = cfg.MODEL.TYPE
-        cfg2.MODEL.TYPE = 'dummy'
+        cfg2.MODEL.TYPE = "dummy"
         assert cfg.MODEL.TYPE == s
 
     def test_merge_cfg_from_cfg(self):
         # Test: merge from deepcopy
-        s = 'dummy0'
+        s = "dummy0"
         cfg2 = copy.deepcopy(cfg)
         cfg2.MODEL.TYPE = s
         core_config.merge_cfg_from_cfg(cfg2)
         assert cfg.MODEL.TYPE == s
 
         # Test: merge from yaml
-        s = 'dummy1'
+        s = "dummy1"
         cfg2 = core_config.load_cfg(yaml.dump(cfg))
         cfg2.MODEL.TYPE = s
         core_config.merge_cfg_from_cfg(cfg2)
         assert cfg.MODEL.TYPE == s
 
         # Test: merge with a valid key
-        s = 'dummy2'
+        s = "dummy2"
         cfg2 = AttrDict()
         cfg2.MODEL = AttrDict()
         cfg2.MODEL.TYPE = s
@@ -95,7 +94,7 @@ class TestCfg(unittest.TestCase):
         assert cfg.MODEL.TYPE == s
 
         # Test: merge with an invalid key
-        s = 'dummy3'
+        s = "dummy3"
         cfg2 = AttrDict()
         cfg2.FOO = AttrDict()
         cfg2.FOO.BAR = s
@@ -121,30 +120,30 @@ class TestCfg(unittest.TestCase):
         with tempfile.NamedTemporaryFile() as f:
             yaml.dump(cfg, f)
             s = cfg.MODEL.TYPE
-            cfg.MODEL.TYPE = 'dummy'
+            cfg.MODEL.TYPE = "dummy"
             assert cfg.MODEL.TYPE != s
             core_config.merge_cfg_from_file(f.name)
             assert cfg.MODEL.TYPE == s
 
     def test_merge_cfg_from_list(self):
         opts = [
-            'TRAIN.SCALES', '(100, )', 'MODEL.TYPE', u'foobar', 'NUM_GPUS', 2
+            "TRAIN.SCALES", "(100, )", "MODEL.TYPE", "foobar", "NUM_GPUS", 2
         ]
         assert len(cfg.TRAIN.SCALES) > 0
         assert cfg.TRAIN.SCALES[0] != 100
-        assert cfg.MODEL.TYPE != 'foobar'
+        assert cfg.MODEL.TYPE != "foobar"
         assert cfg.NUM_GPUS != 2
         core_config.merge_cfg_from_list(opts)
         assert type(cfg.TRAIN.SCALES) is tuple
         assert len(cfg.TRAIN.SCALES) == 1
         assert cfg.TRAIN.SCALES[0] == 100
-        assert cfg.MODEL.TYPE == 'foobar'
+        assert cfg.MODEL.TYPE == "foobar"
         assert cfg.NUM_GPUS == 2
 
     def test_deprecated_key_from_list(self):
         # You should see logger messages like:
         #   "Deprecated config key (ignoring): MODEL.DILATION"
-        opts = ['FINAL_MSG', 'foobar', 'MODEL.DILATION', 2]
+        opts = ["FINAL_MSG", "foobar", "MODEL.DILATION", 2]
         with self.assertRaises(AttributeError):
             _ = cfg.FINAL_MSG  # noqa
         with self.assertRaises(AttributeError):
@@ -172,7 +171,7 @@ class TestCfg(unittest.TestCase):
         # You should see logger messages like:
         #  "Key EXAMPLE.RENAMED.KEY was renamed to EXAMPLE.KEY;
         #  please update your config"
-        opts = ['EXAMPLE.RENAMED.KEY', 'foobar']
+        opts = ["EXAMPLE.RENAMED.KEY", "foobar"]
         with self.assertRaises(AttributeError):
             _ = cfg.EXAMPLE.RENAMED.KEY  # noqa
         with self.assertRaises(KeyError):
@@ -186,7 +185,7 @@ class TestCfg(unittest.TestCase):
             cfg2 = copy.deepcopy(cfg)
             cfg2.EXAMPLE = AttrDict()
             cfg2.EXAMPLE.RENAMED = AttrDict()
-            cfg2.EXAMPLE.RENAMED.KEY = 'foobar'
+            cfg2.EXAMPLE.RENAMED.KEY = "foobar"
             yaml.dump(cfg2, f)
             with self.assertRaises(AttributeError):
                 _ = cfg.EXAMPLE.RENAMED.KEY  # noqa
@@ -194,6 +193,6 @@ class TestCfg(unittest.TestCase):
                 core_config.merge_cfg_from_file(f.name)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     logging_utils.setup_logging(__name__)
     unittest.main()

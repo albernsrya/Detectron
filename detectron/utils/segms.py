@@ -12,7 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 ##############################################################################
-
 """Functions for interacting with segmentation masks in the COCO format.
 
 The following terms are used in this module
@@ -22,13 +21,10 @@ The following terms are used in this module
     RLE: COCO's run length encoding format
 """
 
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-from __future__ import unicode_literals
+from __future__ import (absolute_import, division, print_function,
+                        unicode_literals)
 
 import numpy as np
-
 import pycocotools.mask as mask_util
 
 # Type used for storing masks in polygon format
@@ -39,8 +35,9 @@ _RLE_TYPE = dict
 
 def is_poly(segm):
     """Determine if segm is a polygon. Valid segm expected (polygon or RLE)."""
-    assert isinstance(segm, (_POLY_TYPE, _RLE_TYPE)), \
-        'Invalid segm type: {}'.format(type(segm))
+    assert isinstance(segm,
+                      (_POLY_TYPE, _RLE_TYPE)), "Invalid segm type: {}".format(
+                          type(segm))
     return isinstance(segm, _POLY_TYPE)
 
 
@@ -52,13 +49,13 @@ def flip_segms(segms, height, width):
         return flipped_poly.tolist()
 
     def _flip_rle(rle, height, width):
-        if 'counts' in rle and type(rle['counts']) == list:
+        if "counts" in rle and type(rle["counts"]) == list:
             # Magic RLE format handling painfully discovered by looking at the
             # COCO API showAnns function.
             rle = mask_util.frPyObjects([rle], height, width)
         mask = mask_util.decode(rle)
         mask = mask[:, ::-1, :]
-        rle = mask_util.encode(np.array(mask, order='F', dtype=np.uint8))
+        rle = mask_util.encode(np.array(mask, order="F", dtype=np.uint8))
         return rle
 
     flipped_segms = []
@@ -142,9 +139,12 @@ def polys_to_boxes(polys):
     return boxes_from_polys
 
 
-def rle_mask_voting(
-    top_masks, all_masks, all_dets, iou_thresh, binarize_thresh, method='AVG'
-):
+def rle_mask_voting(top_masks,
+                    all_masks,
+                    all_dets,
+                    iou_thresh,
+                    binarize_thresh,
+                    method="AVG"):
     """Returns new masks (in correspondence with `top_masks`) by combining
     multiple overlapping masks coming from the pool of `all_masks`. Two methods
     for combining masks are supported: 'AVG' uses a weighted average of
@@ -190,23 +190,23 @@ def rle_mask_voting(
             continue
 
         masks_to_vote = [decoded_all_masks[i] for i in inds_to_vote]
-        if method == 'AVG':
+        if method == "AVG":
             ws = mask_weights[inds_to_vote]
             soft_mask = np.average(masks_to_vote, axis=0, weights=ws)
             mask = np.array(soft_mask > binarize_thresh, dtype=np.uint8)
-        elif method == 'UNION':
+        elif method == "UNION":
             # Any pixel that's on joins the mask
             soft_mask = np.sum(masks_to_vote, axis=0)
             mask = np.array(soft_mask > 1e-5, dtype=np.uint8)
         else:
-            raise NotImplementedError('Method {} is unknown'.format(method))
-        rle = mask_util.encode(np.array(mask[:, :, np.newaxis], order='F'))[0]
+            raise NotImplementedError("Method {} is unknown".format(method))
+        rle = mask_util.encode(np.array(mask[:, :, np.newaxis], order="F"))[0]
         top_segms_out.append(rle)
 
     return top_segms_out
 
 
-def rle_mask_nms(masks, dets, thresh, mode='IOU'):
+def rle_mask_nms(masks, dets, thresh, mode="IOU"):
     """Performs greedy non-maximum suppression based on an overlap measurement
     between masks. The type of measurement is determined by `mode` and can be
     either 'IOU' (standard intersection over union) or 'IOMA' (intersection over
@@ -217,11 +217,11 @@ def rle_mask_nms(masks, dets, thresh, mode='IOU'):
     if len(masks) == 1:
         return [0]
 
-    if mode == 'IOU':
+    if mode == "IOU":
         # Computes ious[m1, m2] = area(intersect(m1, m2)) / area(union(m1, m2))
         all_not_crowds = [False] * len(masks)
         ious = mask_util.iou(masks, masks, all_not_crowds)
-    elif mode == 'IOMA':
+    elif mode == "IOMA":
         # Computes ious[m1, m2] = area(intersect(m1, m2)) / min(area(m1), area(m2))
         all_crowds = [True] * len(masks)
         # ious[m1, m2] = area(intersect(m1, m2)) / area(m2)
@@ -229,13 +229,13 @@ def rle_mask_nms(masks, dets, thresh, mode='IOU'):
         # ... = max(area(intersect(m1, m2)) / area(m2),
         #           area(intersect(m2, m1)) / area(m1))
         ious = np.maximum(ious, ious.transpose())
-    elif mode == 'CONTAINMENT':
+    elif mode == "CONTAINMENT":
         # Computes ious[m1, m2] = area(intersect(m1, m2)) / area(m2)
         # Which measures how much m2 is contained inside m1
         all_crowds = [True] * len(masks)
         ious = mask_util.iou(masks, masks, all_crowds)
     else:
-        raise NotImplementedError('Mode {} is unknown'.format(mode))
+        raise NotImplementedError("Mode {} is unknown".format(mode))
 
     scores = dets[:, 4]
     order = np.argsort(-scores)
